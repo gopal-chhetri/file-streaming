@@ -1,12 +1,14 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import {
   HealthCheck,
   HealthCheckService,
   MemoryHealthIndicator,
   DiskHealthIndicator,
 } from '@nestjs/terminus';
-import { EntityManager } from '@mikro-orm/postgresql';
+import { EntityManager } from '@mikro-orm/core';
 
+@ApiTags('Health')
 @Controller('health')
 export class HealthController {
   constructor(
@@ -18,6 +20,8 @@ export class HealthController {
 
   @Get()
   @HealthCheck()
+  @ApiOperation({ summary: 'Check system health', description: 'Returns database, memory heap, and disk storage status.' })
+  @ApiResponse({ status: 200, description: 'Health check results.' })
   async check() {
     return this.health.check([
       async () => {

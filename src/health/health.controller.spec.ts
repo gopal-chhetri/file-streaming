@@ -5,7 +5,17 @@ import {
   MemoryHealthIndicator,
   DiskHealthIndicator,
 } from '@nestjs/terminus';
-import { EntityManager } from '@mikro-orm/postgresql';
+jest.mock('@mikro-orm/core', () => ({
+  EntityManager: class {
+    getConnection() {
+      return {
+        execute: () => Promise.resolve([{ '1': 1 }]),
+      };
+    }
+  },
+}));
+
+import { EntityManager } from '@mikro-orm/core';
 
 describe('HealthController', () => {
   let controller: HealthController;

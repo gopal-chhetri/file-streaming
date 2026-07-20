@@ -1,5 +1,5 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
-import { EntityManager } from '@mikro-orm/postgresql';
+import { EntityManager } from '@mikro-orm/core';
 import { User } from './entities/user.entity';
 import { Role } from './entities/role.entity';
 import { CreateUserDto } from './dto/create-user.dto';

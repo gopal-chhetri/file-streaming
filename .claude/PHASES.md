@@ -4,8 +4,8 @@ Each phase is independently demoable. Mark completed phases with `[x]`.
 
 ## Phase Checklist
 
-- [ ] **Phase 1: Skeleton** — NestJS app scaffold, feature-based structure (`users/`, `auth/`, `videos/`, `streaming/`, `analytics/`, `admin/`, `kafka/`, `common/`), MikroORM v7 setup (`mikro-orm.config.ts`, glob entity discovery, `forFeature` in modules), `users/entities/` with `user.entity.ts` + `role.entity.ts`, `deployments/local-dev/compose.yml` (postgres + redis + kafka + minio), `deployments/local-dev/Dockerfile` (multi-stage, node:22-alpine), `Makefile`, health check endpoint
-- [ ] **Phase 2: Auth** — JWT (RS256) + refresh token flow, rotation and reuse detection, login rate limiting via Redis
+- [x] **Phase 1: Skeleton** — NestJS app scaffold, feature-based structure (`users/`, `auth/`, `videos/`, `streaming/`, `analytics/`, `admin/`, `kafka/`, `common/`), MikroORM v7 setup (`mikro-orm.config.ts`, glob entity discovery, `forFeature` in modules), `users/entities/` with `user.entity.ts` + `role.entity.ts`, Swagger bootstrap (`@nestjs/swagger` + `SwaggerModule` in `main.ts`, serves at `/api/docs`), `deployments/local/compose.yml` (postgres + redis + kafka + minio), `deployments/local/Dockerfile` (multi-stage, node:22-alpine), `Makefile`, health check endpoint
+- [x] **Phase 2: Auth** — JWT (RS256) + refresh token flow, rotation and reuse detection, login rate limiting via Redis
 - [ ] **Phase 3: Uploads** — MinIO integration, presigned upload URLs, `videos` table, basic CRUD (store and list raw uploads, no transcoding yet)
 - [ ] **Phase 4: Transcoding Pipeline** — Kafka topic (`video.uploaded`), ffmpeg worker (as Compose service), HLS output to MinIO, master manifest generation
 - [ ] **Phase 5: Streaming** — Traefik reverse proxy (in Compose), Cloudflare proxying, confirm adaptive playback end-to-end with hls.js

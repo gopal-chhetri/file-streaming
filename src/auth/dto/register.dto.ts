@@ -8,14 +8,14 @@ import {
   Matches,
 } from 'class-validator';
 
-export class CreateUserDto {
-  @ApiProperty({ example: 'newuser@example.com', description: 'User email address' })
+export class RegisterDto {
+  @ApiProperty({ example: 'user@example.com', description: 'User email address' })
   @IsEmail()
   @IsNotEmpty()
   @MaxLength(50)
   email!: string;
 
-  @ApiProperty({ example: 'newuser', description: 'Unique username' })
+  @ApiProperty({ example: 'johndoe', description: 'Unique username (letters, numbers, underscores)' })
   @IsString()
   @IsNotEmpty()
   @MinLength(3)
@@ -31,13 +31,13 @@ export class CreateUserDto {
   @MinLength(8)
   password!: string;
 
-  @ApiProperty({ example: 'Jane', description: 'First name' })
+  @ApiProperty({ example: 'John', description: 'First name' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
   firstName!: string;
 
-  @ApiProperty({ example: 'Smith', description: 'Last name' })
+  @ApiProperty({ example: 'Doe', description: 'Last name' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)

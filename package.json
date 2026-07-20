@@ -19,7 +19,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "migration:create": "npx mikro-orm migration:create",
     "migration:up": "npx mikro-orm migration:up",
-    "migration:down": "npx mikro-orm migration:down"
+    "migration:down": "npx mikro-orm migration:down",
+    "seed": "ts-node --project tsconfig.seeder.json -r tsconfig-paths/register src/seeder/seeder.ts"
   },
   "mikro-orm": {
     "useTsNode": true,
@@ -37,12 +38,22 @@
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.4.6",
     "@nestjs/terminus": "^11.0.0",
+    "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "cookie-parser": "^1.4.7",
+    "ioredis": "^5.11.1",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "passport-local": "^1.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "^14.0.1"
   },
   "devDependencies": {
@@ -50,9 +61,13 @@
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
     "@types/babel__core": "^7.20.5",
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.0",
     "@types/node": "^22.0.0",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/passport-local": "^1.0.38",
     "@types/supertest": "^7.2.1",
     "@types/uuid": "^9.0.8",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
@@ -89,6 +104,9 @@
     "testEnvironment": "node",
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/$1"
-    }
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!@mikro-orm)"
+    ]
   }
 }

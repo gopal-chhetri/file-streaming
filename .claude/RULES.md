@@ -79,16 +79,17 @@ src/
 ## Deployment Strategy: Compose-first, K8s-later
 
 **Stage 1 (Phase 1–9): Docker Compose on VPS**
-- `deployments/local-dev/compose.yml` — local dev (postgres + redis + kafka + minio + app with hot-reload mounts)
-- `deployments/local-dev/Dockerfile` — multi-stage (build → prod), `node:22-alpine`
-- `deployments/local-dev/.env` + `.env.example`
-- `deployments/production/compose.yml` — production (+Traefik reverse proxy with TLS)
-- `deployments/production/Dockerfile` — production multi-stage build
-- `deployments/production/deploy.sh` + `setup-vps.sh`
-- `deployments/production/.env.example`
+- `deployments/local/compose.yml` — local dev (postgres + redis + kafka + minio + app with hot-reload mounts)
+- `deployments/local/Dockerfile` — multi-stage (build → prod), `node:22-alpine`
+- `deployments/local/.env` + `.env.example`
+- `deployments/remote/compose.yml` — VPS deployment (+Traefik reverse proxy with TLS)
+- `deployments/remote/Dockerfile` — production multi-stage build
+- `deployments/remote/deploy.sh` + `setup-vps.sh`
+- `deployments/remote/.env.example`
 - All secrets via Infisical; CI/CD via GitHub Actions
 
-**Stage 2 (Phase 10): Migrate to Kubernetes + Observability**
+**Stage 2 (Phase 10): Kubernetes + Observability**
+- `deployments/prod/` — K8s manifests + monitoring config
 - Convert Compose services to K8s Deployments + Services
 - Traefik becomes the K8s Ingress controller
 - Add Prometheus + Grafana + Loki for observability
@@ -97,8 +98,8 @@ src/
 
 **Makefile commands:**
 ```makefile
-up:        docker compose -f deployments/local-dev/compose.yml up --build
-down:      docker compose -f deployments/local-dev/compose.yml down
+up:        docker compose -f deployments/local/compose.yml up --build
+down:      docker compose -f deployments/local/compose.yml down
 build:     pnpm run build
 migrate:   loads .env then runs migration:up
 seed:      loads .env then runs seed script
@@ -119,6 +120,7 @@ seed:      loads .env then runs seed script
 - Prometheus + Grafana + Loki for observability
 
 ## Coding Practices
+- **Swagger/OpenAPI** — use `@nestjs/swagger` decorators (`@ApiTags`, `@ApiBearerAuth`, `@ApiOperation`, `@ApiResponse`) on all controllers. Setup `SwaggerModule` in `main.ts`, serves at `/api/docs`.
 - **Presigned URLs** for uploads and playback — large files go direct to MinIO, not through the app server
 - **Stateless API pods** — all state lives in PostgreSQL / MongoDB / Redis / MinIO
 - **All secrets via Infisical** — never in code or config files
