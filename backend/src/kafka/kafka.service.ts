@@ -1,6 +1,7 @@
 import {
   Injectable,
   Logger,
+  OnModuleInit,
   OnApplicationShutdown,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -31,12 +32,13 @@ export interface HeartbeatEvent {
 }
 
 @Injectable()
-export class KafkaService implements OnApplicationShutdown {
+export class KafkaService implements OnModuleInit, OnApplicationShutdown {
   private readonly logger = new Logger(KafkaService.name);
   private readonly kafka: Kafka;
   private readonly producer: Producer;
   private readonly consumer: Consumer;
   private readonly admin: Admin;
+  private reconnecting = false;
 
   constructor(private readonly configService: ConfigService) {
     const brokers = this.configService.get<string[]>('kafka.brokers', [
@@ -55,6 +57,19 @@ export class KafkaService implements OnApplicationShutdown {
     this.producer = this.kafka.producer();
     this.consumer = this.kafka.consumer({ groupId });
     this.admin = this.kafka.admin();
+
+    this.producer.on('producer.disconnect', async () => {
+      if (this.reconnecting) return;
+      this.reconnecting = true;
+      this.logger.warn('Producer disconnected — reconnecting...');
+      try {
+        await this.producer.connect();
+        this.logger.log('Producer reconnected');
+      } catch (err) {
+        this.logger.error(`Producer reconnect failed: ${err}`);
+      }
+      this.reconnecting = false;
+    });
   }
 
   async onModuleInit() {
@@ -95,9 +110,19 @@ export class KafkaService implements OnApplicationShutdown {
       });
       this.logger.log(`Published video.uploaded: ${event.videoId}`);
     } catch (err) {
-      this.logger.error(
-        `Failed to publish video.uploaded for ${event.videoId}: ${err}`,
-      );
+      if ((err as Error).message?.includes('disconnected')) {
+        this.logger.warn(`Producer disconnected, reconnecting...`);
+        await this.producer.connect();
+        await this.producer.send({
+          topic: VIDEO_UPLOADED_TOPIC,
+          messages: [{ key: event.videoId, value: JSON.stringify(event) }],
+        });
+        this.logger.log(`Published video.uploaded after reconnect: ${event.videoId}`);
+      } else {
+        this.logger.error(
+          `Failed to publish video.uploaded for ${event.videoId}: ${err}`,
+        );
+      }
     }
   }
 
@@ -110,9 +135,20 @@ export class KafkaService implements OnApplicationShutdown {
         ],
       });
     } catch (err) {
-      this.logger.error(
-        `Failed to publish heartbeat for session ${event.sessionId}: ${err}`,
-      );
+      if ((err as Error).message?.includes('disconnected')) {
+        this.logger.warn(`Producer disconnected, reconnecting...`);
+        await this.producer.connect();
+        await this.producer.send({
+          topic: VIDEO_HEARTBEAT_TOPIC,
+          messages: [
+            { key: `${event.sessionId}`, value: JSON.stringify(event) },
+          ],
+        });
+      } else {
+        this.logger.error(
+          `Failed to publish heartbeat for session ${event.sessionId}: ${err}`,
+        );
+      }
     }
   }
 

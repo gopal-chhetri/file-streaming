@@ -47,6 +47,7 @@
     "bcrypt": "^6.0.0",
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
+    "dotenv": "^17.4.2",
     "ioredis": "^5.11.1",
     "kafkajs": "^2.2.4",
     "minio": "^8.0.7",
