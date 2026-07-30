@@ -1,33 +1,33 @@
 # Session Memory
 
 ## Current Phase
-Phase 2: Auth — complete
+Phase 5: Streaming — complete
 
 ## Recently Completed
-- Feature-based module structure (auth, users, videos, streaming, analytics, admin, kafka, common)
-- All 10 modules registered in AppModule
-- `users/entities/` with `user.entity.ts`, `role.entity.ts`, `enums.ts` (admin, staff, user)
-- Health endpoint with Postgres connectivity check
-- Initial migration created and applied (roles + users tables)
-- `@nestjs/config` + dev deps installed
-- Build passes with 0 errors
-- `deployments/local/` with compose.yml, Dockerfile, .env
-- Passport-local and JWT authentication with RS256 signing (RSA key pair auto-generation for local dev)
-- Opaque refresh tokens with rotation and family-based theft/reuse detection
-- Login rate-limiting (max 5/min per IP + per username) via global RedisModule
-- Swagger setup in main.ts (`/api/docs`) + `@ApiTags`/`@ApiOperation` on auth controller
-- `swagger-ui-express` dependency added (was missing)
+- Streaming module with controller + service (`backend/src/streaming/`)
+  - `GET /api/streaming/:videoId/*` catch-all route proxies HLS files from MinIO `processed/` bucket
+  - Correct MIME types for .m3u8 and .ts files
+  - Range header support for video seeking
+  - Cache-Control headers for CDN-friendly caching (1 year, immutable)
+- `VideoResponseDto` — added computed `hlsUrl` field pointing to master playlist
+- VideosService — `findAll()` and `findById()` now append computed `hlsUrl` based on video status
+- Frontend mock data — all 10 mock videos now include `hlsUrl` pointing to streaming endpoint
 
-## Cross-check Notes
-- ✅ All guards, strategies, entities, DTOs verified
-- ✅ RS256 with auto-generated RSA key pair (falls back to env vars)
-- ✅ Refresh token: opaque random (32 bytes hex), sha256 hash, family-based theft detection
-- ✅ Rate limit: 5 attempts/min per IP + per username via Redis incr/expire
-- ❌ No auth unit tests exist (only health controller spec). Create before Phase 3.
-
-## Current File Being Worked On
-(None — auth phase complete)
+## Files Created / Changed
+- `backend/src/streaming/streaming.service.ts` — new
+- `backend/src/streaming/streaming.controller.ts` — new
+- `backend/src/streaming/streaming.module.ts` — rewritten from empty shell
+- `backend/src/videos/dto/video-response.dto.ts` — added hlsUrl field
+- `backend/src/videos/videos.service.ts` — added mapVideo() helper, findAll/findById return computed hlsUrl
+- `frontend/src/lib/mock-data.ts` — added hlsUrl to all 10 mock videos
 
 ## Next
-Phase 3: Uploads — MinIO integration, presigned upload URLs, videos table, basic CRUD
+Phase 6: Watch History — `watch_history` table, upsert-on-session-end logic, resume playback on frontend
 
+## Cross-check Notes
+- ✅ Streaming module uses catch-all `*` route param for flexible path matching
+- ✅ Range headers supported for seeking (.ts segments)
+- ✅ Cache headers set to max-age=31536000, immutable (HLS segments are content-addressed by rendition)
+- ✅ hlsUrl only included when status === 'ready'
+- ✅ Frontend already had `hlsUrl` in Video type — no type changes needed
+- ✅ No unit tests yet for streaming endpoints

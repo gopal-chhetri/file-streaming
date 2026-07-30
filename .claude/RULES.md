@@ -19,8 +19,8 @@
 - **Token rotation:** On refresh, issue a new access+refresh pair (same `family_id`), revoke the old refresh token. If a revoked token is ever presented again, revoke the entire `family_id` (theft signal).
 
 ## Authorization
-- Use Casbin RBAC with roles: `admin`, `staff`, `user`.
-- **Casbin config path must be an environment variable** — never hardcoded (avoid the bug from url-shortener project).
+- Use custom `RolesGuard` + `@Roles()` decorator (see `src/auth/guards/roles.guard.ts`) with roles: `admin`, `staff`, `user`.
+- Roles are enforced at the controller/route level via `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles(UserRole.ADMIN)`.
 - Role modeled as a separate `Role` entity (`id`, `name`, `description`, `createdAt`, `updatedAt`) with ManyToOne FK to `User.role_id`.
 
 ## File Structure

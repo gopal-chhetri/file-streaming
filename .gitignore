@@ -1,8 +1,12 @@
 # Dependencies
 node_modules/
+backend/node_modules/
+frontend/node_modules/
 
 # Build output
 dist/
+backend/dist/
+frontend/dist/
 build/
 
 # Environment files (secrets via Infisical, not committed)
@@ -33,3 +37,9 @@ coverage/
 logs/
 *.log
 npm-debug.log*
+
+# MikroORM migration snapshots
+backend/src/migrations/.snapshot/
+
+# Claude
+# .claude/
