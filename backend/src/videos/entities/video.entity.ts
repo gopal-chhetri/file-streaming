@@ -13,7 +13,8 @@ export enum VideoStatus {
   PENDING = 'pending',
   PENDING_REVIEW = 'pending_review',
   PROCESSING = 'processing',
-  READY = 'ready',
+  ACTIVE = 'active',
+  BANNED = 'banned',
   FAILED = 'failed',
 }
 
@@ -40,10 +41,13 @@ export class Video {
   size!: string;
 
   @Enum({ items: () => VideoStatus })
-  status: VideoStatus = VideoStatus.PENDING_REVIEW;
+  status: VideoStatus = VideoStatus.PENDING;
 
   @Property({ type: 'string', length: 500, nullable: true })
   thumbnailUrl?: string;
+
+  @Property({ type: 'string', length: 500, nullable: true })
+  failureReason?: string;
 
   @Property({ type: 'float', nullable: true })
   duration?: number;

@@ -1,6 +1,5 @@
 import { createRoute } from '@tanstack/react-router'
 import { Route as rootRoute } from './__root'
-import { BrowseLayout } from '../layouts/browse-layout'
 import { useAnalyticsDashboard } from '../hooks/use-analytics'
 import {
   ChartBar,
@@ -48,7 +47,6 @@ function AnalyticsPage() {
   ]
 
   return (
-    <BrowseLayout>
     <div className="space-y-6 animate-in">
       <div>
         <h1 className="text-xl font-medium text-text-primary">Analytics</h1>
@@ -94,6 +92,5 @@ function AnalyticsPage() {
         </div>
       )}
     </div>
-    </BrowseLayout>
   )
 }

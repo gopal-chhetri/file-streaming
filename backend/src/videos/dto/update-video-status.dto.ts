@@ -5,7 +5,7 @@ import { VideoStatus } from '../entities/video.entity';
 export class UpdateVideoStatusDto {
   @ApiProperty({
     enum: VideoStatus,
-    example: VideoStatus.READY,
+    example: VideoStatus.ACTIVE,
     description: 'New video status',
   })
   @IsEnum(VideoStatus)
@@ -27,4 +27,12 @@ export class UpdateVideoStatusDto {
   @IsString()
   @IsOptional()
   thumbnailUrl?: string;
+
+  @ApiPropertyOptional({
+    example: 'INCOMPATIBLE_FILE',
+    description: 'Optional reason the video failed processing',
+  })
+  @IsString()
+  @IsOptional()
+  failureReason?: string;
 }

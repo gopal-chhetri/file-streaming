@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import type { User, Video } from '../types'
+import type { User } from '../types'
 
 export interface AdminStats {
   totalVideos: number
@@ -33,14 +33,6 @@ export function useAdminStats() {
     queryKey: ['admin-stats'],
     queryFn: () => api<AdminStats>('/admin/stats'),
     staleTime: 60_000,
-  })
-}
-
-export function usePendingVideos() {
-  return useQuery({
-    queryKey: ['pending-videos'],
-    queryFn: () => api<Video[]>('/admin/pending'),
-    staleTime: 30_000,
   })
 }
 
@@ -124,7 +116,7 @@ export function useModerateVideo() {
       reason,
     }: {
       videoId: string
-      action: 'approve' | 'reject'
+      action: 'approve' | 'reject' | 'flag_pending' | 'flag_banned'
       reason?: string
     }) =>
       api(`/admin/videos/${videoId}/moderate`, {
@@ -132,7 +124,6 @@ export function useModerateVideo() {
         body: JSON.stringify({ action, reason }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pending-videos'] })
       queryClient.invalidateQueries({ queryKey: ['admin-stats'] })
       queryClient.invalidateQueries({ queryKey: ['videos'] })
       queryClient.invalidateQueries({ queryKey: ['audit-log'] })

@@ -1,6 +1,5 @@
 import { createRoute } from '@tanstack/react-router'
 import { Route as rootRoute } from '../__root'
-import { AdminLayout } from '../../layouts/admin-layout'
 import { useAuditLog } from '../../hooks/use-admin'
 import {
   Table,
@@ -21,7 +20,6 @@ function AdminAudit() {
   const { data: entries, isLoading } = useAuditLog()
 
   return (
-    <AdminLayout>
     <div className="space-y-6 animate-in">
       <div>
         <h1 className="text-xl font-medium text-text-primary">Audit Log</h1>
@@ -72,6 +70,5 @@ function AdminAudit() {
         </div>
       )}
     </div>
-    </AdminLayout>
   )
 }

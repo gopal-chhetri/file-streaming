@@ -9,7 +9,6 @@ import { Kafka, Producer, Consumer, Admin } from 'kafkajs';
 
 export const VIDEO_UPLOADED_TOPIC = 'video.uploaded';
 export const VIDEO_HEARTBEAT_TOPIC = 'video.heartbeat';
-const PROCESSED_BUCKET = 'processed';
 
 export interface VideoUploadedEvent {
   videoId: string;
@@ -117,7 +116,9 @@ export class KafkaService implements OnModuleInit, OnApplicationShutdown {
           topic: VIDEO_UPLOADED_TOPIC,
           messages: [{ key: event.videoId, value: JSON.stringify(event) }],
         });
-        this.logger.log(`Published video.uploaded after reconnect: ${event.videoId}`);
+        this.logger.log(
+          `Published video.uploaded after reconnect: ${event.videoId}`,
+        );
       } else {
         this.logger.error(
           `Failed to publish video.uploaded for ${event.videoId}: ${err}`,
@@ -130,9 +131,7 @@ export class KafkaService implements OnModuleInit, OnApplicationShutdown {
     try {
       await this.producer.send({
         topic: VIDEO_HEARTBEAT_TOPIC,
-        messages: [
-          { key: `${event.sessionId}`, value: JSON.stringify(event) },
-        ],
+        messages: [{ key: `${event.sessionId}`, value: JSON.stringify(event) }],
       });
     } catch (err) {
       if ((err as Error).message?.includes('disconnected')) {

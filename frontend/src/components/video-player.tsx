@@ -23,6 +23,8 @@ export function VideoPlayer({
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const initialTimeRef = useRef(initialTime)
+  initialTimeRef.current = initialTime
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -36,20 +38,23 @@ export function VideoPlayer({
 
     if (Hls.isSupported() && src.includes('.m3u8')) {
       const hls = new Hls({})
+      hls.on(Hls.Events.ERROR, (_e, data) => {
+        console.error('[hls] error', data.type, data.details, data.fatal)
+      })
       hls.loadSource(src)
       hls.attachMedia(video)
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (initialTime) video.currentTime = initialTime
+        if (initialTimeRef.current) video.currentTime = initialTimeRef.current
       })
       return () => hls.destroy()
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src
-      if (initialTime) video.currentTime = initialTime
+      if (initialTimeRef.current) video.currentTime = initialTimeRef.current
     } else {
       video.src = src
-      if (initialTime) video.currentTime = initialTime
+      if (initialTimeRef.current) video.currentTime = initialTimeRef.current
     }
-  }, [src, initialTime])
+  }, [src])
 
   const handleTimeUpdate = useCallback(() => {
     const video = videoRef.current

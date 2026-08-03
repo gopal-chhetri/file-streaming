@@ -8,6 +8,7 @@ import { Video, VideoStatus } from '../videos/entities/video.entity';
 import { AuditLog } from './entities/audit-log.entity';
 import { DailyAnalytics } from '../analytics/schemas/daily-analytics.schema';
 import { ModerateVideoDto } from './dto/moderate-video.dto';
+import { KafkaService } from '../kafka/kafka.service';
 import type { Request } from 'express';
 
 @Injectable()
@@ -19,13 +20,14 @@ export class AdminService {
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
     @InjectModel(DailyAnalytics.name)
     private readonly dailyAnalyticsModel: Model<DailyAnalytics>,
+    private readonly kafka: KafkaService,
   ) {}
 
   async getStats() {
     const totalVideos = await this.em.count(Video, {});
     const totalUsers = await this.em.count(User, {});
-    const pendingReview = await this.em.count(Video, {
-      status: VideoStatus.PENDING_REVIEW,
+    const pendingProcessing = await this.em.count(Video, {
+      status: { $in: [VideoStatus.PENDING, VideoStatus.PROCESSING] },
     });
 
     const sizeResult = await this.em
@@ -34,7 +36,8 @@ export class AdminService {
         `SELECT COALESCE(SUM(size::bigint), 0) AS total_bytes FROM videos`,
       );
     const totalBytes = Number(sizeResult[0]?.total_bytes || 0);
-    const storageUsedGb = Math.round((totalBytes / (1024 * 1024 * 1024)) * 100) / 100;
+    const storageUsedGb =
+      Math.round((totalBytes / (1024 * 1024 * 1024)) * 100) / 100;
 
     let activeSessions = 0;
     try {
@@ -44,7 +47,9 @@ export class AdminService {
     }
 
     const today = new Date().toISOString().slice(0, 10);
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000)
+      .toISOString()
+      .slice(0, 10);
 
     const views24h = await this.dailyAnalyticsModel.aggregate([
       { $match: { date: { $in: [today, yesterday] } } },
@@ -56,20 +61,9 @@ export class AdminService {
       totalUsers,
       storageUsedGb,
       activeSessions,
-      pendingReview,
+      pendingReview: pendingProcessing,
       totalViews24h: views24h[0]?.total || 0,
     };
-  }
-
-  async getPendingVideos() {
-    return this.em.find(
-      Video,
-      { status: VideoStatus.PENDING_REVIEW },
-      {
-        populate: ['user'],
-        orderBy: { createdAt: 'DESC' },
-      },
-    );
   }
 
   async moderateVideo(
@@ -82,8 +76,21 @@ export class AdminService {
       throw new NotFoundException('Video not found');
     }
 
-    if (dto.action === 'approve') {
+    const previousStatus = video.status;
+
+    if (dto.action === 'approve' || dto.action === 'flag_pending') {
       video.status = VideoStatus.PENDING;
+      await this.kafka.publishVideoUploaded({
+        videoId: video.id,
+        objectKey: video.filename,
+        bucket: 'raw-uploads',
+        filename: video.filename,
+        mimeType: video.mimeType,
+        size: String(video.size),
+        userId: video.user.id,
+      });
+    } else if (dto.action === 'flag_banned') {
+      video.status = VideoStatus.BANNED;
     } else {
       video.status = VideoStatus.FAILED;
     }
@@ -96,7 +103,7 @@ export class AdminService {
       entityType: 'video',
       entityId: id,
       actor: actorRef,
-      metadata: { reason: dto.reason || null, previousStatus: VideoStatus.PENDING_REVIEW },
+      metadata: { reason: dto.reason || null, previousStatus },
       ip: req.ip,
     });
 

@@ -1,9 +1,8 @@
 import { createRoute } from '@tanstack/react-router'
 import { Route as rootRoute } from './__root'
-import { BrowseLayout } from '../layouts/browse-layout'
 import { useWatchHistory } from '../hooks/use-watch-history'
 import { Link } from '@tanstack/react-router'
-import { ClockCounterClockwise } from '@phosphor-icons/react'
+import { ClockCounterClockwise, Play } from '@phosphor-icons/react'
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
@@ -15,7 +14,6 @@ function WatchHistoryPage() {
   const { data: history, isLoading } = useWatchHistory()
 
   return (
-    <BrowseLayout>
     <div className="space-y-6 animate-in">
       <div>
         <h1 className="text-xl font-medium text-text-primary">Watch History</h1>
@@ -31,41 +29,61 @@ function WatchHistoryPage() {
       ) : history && history.length > 0 ? (
         <div className="divide-y divide-border rounded-lg border border-border bg-surface">
           {history.map((item) => (
-            <div
+            <Link
               key={item.videoId}
-              className="flex items-center gap-4 px-4 py-3 text-sm"
+              to="/watch/$videoId"
+              params={{ videoId: item.videoId }}
+              className="group flex items-center gap-4 px-4 py-3 text-sm transition-all duration-150 hover:bg-accent/5"
             >
-              <Link
-                to="/watch/$videoId"
-                params={{ videoId: item.videoId }}
-                className="flex-1 truncate font-medium text-text-primary hover:text-accent transition-colors"
-              >
-                {item.videoId}
-              </Link>
-              <div className="flex items-center gap-3">
+              <div className="relative h-12 w-20 flex-shrink-0 overflow-hidden rounded-md bg-subtle">
+                {item.thumbnailUrl ? (
+                  <img
+                    src={item.thumbnailUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : null}
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-all duration-150 group-hover:bg-black/30">
+                  <Play
+                    size={16}
+                    weight="fill"
+                    className="text-white/0 transition-all duration-150 group-hover:text-white/90"
+                  />
+                </div>
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="block truncate font-medium text-text-primary transition-colors group-hover:text-accent">
+                  {item.title}
+                </span>
+                {item.channel && (
+                  <span className="mt-0.5 block truncate text-xs text-text-muted">
+                    {item.channel}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-shrink-0 items-center gap-3">
                 <div className="relative h-2 w-24 overflow-hidden rounded-full bg-subtle">
                   <div
                     className="h-full rounded-full bg-accent transition-all duration-300"
                     style={{ width: `${Math.round(item.progress)}%` }}
                   />
                 </div>
-                <span className="text-xs font-mono text-text-muted w-8 text-right">
+                <span className="w-8 text-right text-xs font-mono text-text-muted">
                   {Math.round(item.progress)}%
                 </span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-16 text-text-muted">
           <ClockCounterClockwise size={40} className="mb-3 opacity-30" />
           <p className="text-sm">No watch history yet</p>
-          <p className="text-xs text-text-muted mt-1">
+          <p className="mt-1 text-xs text-text-muted">
             Start watching videos to build your history
           </p>
         </div>
       )}
     </div>
-    </BrowseLayout>
   )
 }

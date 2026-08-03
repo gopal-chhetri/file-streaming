@@ -1,4 +1,4 @@
-export type VideoStatus = 'pending' | 'pending_review' | 'processing' | 'ready' | 'failed'
+export type VideoStatus = 'pending' | 'pending_review' | 'processing' | 'active' | 'banned' | 'failed'
 
 export type UserRole = 'admin' | 'staff' | 'user'
 
@@ -16,6 +16,7 @@ export interface Video {
   tags: string[]
   hlsUrl?: string
   watchProgress?: number
+  failureReason?: string | null
 }
 
 export interface User {
@@ -29,6 +30,9 @@ export interface User {
 
 export interface WatchHistory {
   videoId: string
+  title: string
+  thumbnailUrl: string | null
+  channel?: string
   progress: number
   watchedAt: string
 }

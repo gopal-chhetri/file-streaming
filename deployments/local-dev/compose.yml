@@ -224,15 +224,18 @@ services:
     container_name: streaming-frontend
     build:
       context: ../../frontend
-      dockerfile: ../deployments/local-dev/Dockerfile.frontend
+      dockerfile: ../deployments/local-dev/Dockerfile.frontend.dev
     restart: unless-stopped
     depends_on:
       - backend
+    volumes:
+      - ../../frontend:/app
+      - /app/node_modules
     labels:
       - traefik.enable=true
       - traefik.http.routers.frontend.rule=Host(`streaming.soylab.local`)
       - traefik.http.routers.frontend.entrypoints=web
-      - traefik.http.services.frontend.loadbalancer.server.port=80
+      - traefik.http.services.frontend.loadbalancer.server.port=5173
 
   # ==========================================================================
   # Transcoding Worker — Kafka consumer + ffmpeg HLS transcoder

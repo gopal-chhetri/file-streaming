@@ -4,7 +4,6 @@ import { Input } from '../../components/ui/input'
 import { Button } from '../../components/ui/button'
 import { useAuth } from '../../hooks/use-auth'
 import { useState, useEffect } from 'react'
-import { MonitorPlay } from '@phosphor-icons/react'
 
 export const Route = createRoute({
   getParentRoute: () => rootRoute,
@@ -24,7 +23,7 @@ function RegisterPage() {
 
   useEffect(() => {
     if (user) navigate({ to: user.role === 'admin' ? '/admin' : '/browse' })
-  }, [user])
+  }, [user, navigate])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -37,13 +36,11 @@ function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-page p-4">
+    <div className="flex min-h-[calc(100dvh-15rem)] items-center justify-center p-4">
       <div className="w-full max-w-sm animate-in">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
-              <MonitorPlay size={24} weight="fill" className="text-accent" />
-            </div>
+            <img src="/logo.png" alt="Aurora" className="mx-auto mb-4 h-12 w-12 rounded-xl object-contain" />
             <h1 className="text-2xl font-medium text-text-primary">Aurora</h1>
             <p className="mt-1 text-sm text-text-muted">Create your account</p>
           </div>

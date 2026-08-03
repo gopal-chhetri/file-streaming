@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsIn, Min, Max } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsIn, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class HeartbeatDto {

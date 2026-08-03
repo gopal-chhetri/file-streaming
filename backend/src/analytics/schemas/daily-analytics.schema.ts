@@ -9,7 +9,6 @@ export interface RetentionPoint {
 
 @Schema({ collection: 'daily_analytics', timestamps: true })
 export class DailyAnalytics extends Document {
-
   @Prop({ required: true })
   videoId!: string;
 
@@ -28,9 +27,13 @@ export class DailyAnalytics extends Document {
   @Prop({ default: 0 })
   totalWatchTimeSeconds!: number;
 
-  @Prop({ type: [{ position: Number, viewers: Number, percentage: Number }], default: [] })
+  @Prop({
+    type: [{ position: Number, viewers: Number, percentage: Number }],
+    default: [],
+  })
   retentionCurve!: RetentionPoint[];
 }
 
-export const DailyAnalyticsSchema = SchemaFactory.createForClass(DailyAnalytics);
+export const DailyAnalyticsSchema =
+  SchemaFactory.createForClass(DailyAnalytics);
 DailyAnalyticsSchema.index({ videoId: 1, date: 1 }, { unique: true });

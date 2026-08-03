@@ -9,6 +9,7 @@ import { MINIO_CLIENT } from './minio.constants';
 
 const RAW_UPLOADS_BUCKET = 'raw-uploads';
 const PROCESSED_BUCKET = 'processed';
+const THUMBNAILS_BUCKET = 'thumbnails';
 
 @Injectable()
 export class MinioService implements OnApplicationBootstrap {
@@ -19,6 +20,7 @@ export class MinioService implements OnApplicationBootstrap {
   async onApplicationBootstrap() {
     await this.ensureBucket(RAW_UPLOADS_BUCKET);
     await this.ensureBucket(PROCESSED_BUCKET);
+    await this.ensureBucket(THUMBNAILS_BUCKET);
   }
 
   private async ensureBucket(bucket: string): Promise<void> {

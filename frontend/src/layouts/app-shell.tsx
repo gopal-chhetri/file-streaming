@@ -1,15 +1,21 @@
 import { useState, useEffect, type ReactNode } from 'react'
+import { useLocation } from '@tanstack/react-router'
+import { Sidebar } from '../components/sidebar'
 import { AdminSidebar } from '../components/admin-sidebar'
 import { Topbar } from '../components/topbar'
+import { LoginModal } from '../components/auth/login-modal'
 import { clsx } from '../lib/clsx'
 
-interface AdminLayoutProps {
+interface AppShellProps {
   children: ReactNode
 }
 
-export function AdminLayout({ children }: AdminLayoutProps) {
+export function AppShell({ children }: AppShellProps) {
+  const location = useLocation()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+
+  const isAdmin = location.pathname.startsWith('/admin')
 
   useEffect(() => {
     if (mobileSidebarOpen) {
@@ -23,7 +29,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="flex h-screen overflow-hidden">
       <div className="hidden lg:flex">
-        <AdminSidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
+        {isAdmin ? (
+          <AdminSidebar
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed((c) => !c)}
+          />
+        ) : (
+          <Sidebar
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed((c) => !c)}
+          />
+        )}
       </div>
 
       {mobileSidebarOpen && (
@@ -39,7 +55,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <AdminSidebar />
+        {isAdmin ? <AdminSidebar /> : <Sidebar mobile onClose={() => setMobileSidebarOpen(false)} />}
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
@@ -50,6 +66,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </main>
       </div>
+
+      <LoginModal />
     </div>
   )
 }

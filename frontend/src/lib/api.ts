@@ -8,6 +8,18 @@ interface JwtPayload {
   iat: number
 }
 
+let sessionExpiredNotified = false
+
+export function notifySessionExpired() {
+  if (sessionExpiredNotified) return
+  sessionExpiredNotified = true
+  window.dispatchEvent(new Event('auth:expired'))
+}
+
+export function resetSessionExpired() {
+  sessionExpiredNotified = false
+}
+
 function decodeToken(token: string): JwtPayload | null {
   try {
     const payload = token.split('.')[1]
@@ -36,6 +48,7 @@ async function getFreshToken(): Promise<string | null> {
     })
     if (!res.ok) {
       localStorage.removeItem('aura-token')
+      notifySessionExpired()
       return null
     }
     const { accessToken } = await res.json()
@@ -48,6 +61,7 @@ async function getFreshToken(): Promise<string | null> {
 
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const token = await getFreshToken()
+  const hadToken = !!token
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
@@ -56,7 +70,7 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
       ...options?.headers,
     },
   })
+  if (res.status === 401 && hadToken) notifySessionExpired()
   if (!res.ok) throw new Error(`API error: ${res.status}`)
   return res.json()
 }
-

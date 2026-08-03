@@ -1,6 +1,5 @@
 import { createRoute } from '@tanstack/react-router'
 import { Route as rootRoute } from '../__root'
-import { AdminLayout } from '../../layouts/admin-layout'
 import {
   useUsers,
   useUpdateRole,
@@ -62,7 +61,7 @@ function AdminUsers() {
   }
 
   return (
-    <AdminLayout>
+    <>
     <ConfirmDialog
       open={!!deleteTarget}
       title="Delete user"
@@ -152,6 +151,6 @@ function AdminUsers() {
         </Table>
       )}
     </div>
-    </AdminLayout>
+    </>
   )
 }

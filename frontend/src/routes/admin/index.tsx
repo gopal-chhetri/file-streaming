@@ -1,6 +1,5 @@
 import { createRoute } from '@tanstack/react-router'
 import { Route as rootRoute } from '../__root'
-import { AdminLayout } from '../../layouts/admin-layout'
 import { useAdminStats } from '../../hooks/use-admin'
 import { useVideos } from '../../hooks/use-videos'
 import { Button } from '../../components/ui/button'
@@ -34,7 +33,6 @@ function AdminDashboard() {
   ]
 
   return (
-    <AdminLayout>
     <div className="space-y-6 animate-in">
       <div className="flex items-center justify-between">
         <div>
@@ -99,11 +97,11 @@ function AdminDashboard() {
                 </span>
                 <span
                   className={`rounded-md px-2 py-0.5 text-xs font-medium ${
-                    v.status === 'ready'
+                    v.status === 'active'
                       ? 'bg-success/10 text-success'
                       : v.status === 'processing'
                         ? 'bg-warning/10 text-warning'
-                        : v.status === 'failed'
+                        : v.status === 'failed' || v.status === 'banned'
                           ? 'bg-danger/10 text-danger'
                           : 'bg-subtle text-text-muted'
                   }`}
@@ -116,6 +114,5 @@ function AdminDashboard() {
         )}
       </div>
     </div>
-    </AdminLayout>
   )
 }

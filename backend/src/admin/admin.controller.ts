@@ -7,11 +7,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiBearerAuth,
-  ApiOperation,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AdminService } from './admin.service';
 import { ModerateVideoDto } from './dto/moderate-video.dto';
@@ -32,12 +28,6 @@ export class AdminController {
   @ApiOperation({ summary: 'Get admin dashboard stats' })
   getStats() {
     return this.adminService.getStats();
-  }
-
-  @Get('pending')
-  @ApiOperation({ summary: 'Get videos pending review' })
-  getPendingVideos() {
-    return this.adminService.getPendingVideos();
   }
 
   @Patch('videos/:id/moderate')

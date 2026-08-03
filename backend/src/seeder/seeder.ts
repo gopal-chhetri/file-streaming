@@ -44,6 +44,9 @@ const seedUsers = [
 ];
 
 async function seed() {
+  // PostgreSqlDriver's constructor type doesn't satisfy MikroORM.init's generic
+  // constraint (schema-generator typing skew in @mikro-orm 7.1.7), so cast the
+  // options through the declared init parameter type.
   const orm = await MikroORM.init({
     driver: PostgreSqlDriver,
     extensions: [Migrator],
@@ -53,7 +56,7 @@ async function seed() {
     user: process.env.DB_USER || 'streaming',
     password: process.env.DB_PASS || 'streaming',
     entities: [Role, User],
-  } as any);
+  } as unknown as Parameters<typeof MikroORM.init>[0]);
 
   const em = orm.em.fork();
 

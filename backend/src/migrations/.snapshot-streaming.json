@@ -768,6 +768,23 @@
           "enumItems": [],
           "mappedType": "float"
         },
+        "failure_reason": {
+          "name": "failure_reason",
+          "type": "varchar(500)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 500,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "string"
+        },
         "filename": {
           "name": "filename",
           "type": "varchar(255)",
@@ -852,9 +869,11 @@
           "collation": null,
           "enumItems": [
             "pending",
+            "pending_review",
             "processing",
-            "ready",
-            "failed"
+            "active",
+            "failed",
+            "banned"
           ],
           "mappedType": "enum"
         },
@@ -942,8 +961,8 @@
       "checks": [
         {
           "name": "videos_status_check",
-          "expression": "\"status\" in ('pending', 'processing', 'ready', 'failed')",
-          "definition": "check (\"status\" in ('pending', 'processing', 'ready', 'failed'))",
+          "expression": "\"status\" in ('pending', 'pending_review', 'processing', 'active', 'failed', 'banned')",
+          "definition": "check (\"status\" in ('pending', 'pending_review', 'processing', 'active', 'failed', 'banned'))",
           "columnName": "status"
         }
       ],
@@ -1131,6 +1150,132 @@
           ],
           "constraintName": "watch_history_video_id_fkey",
           "localTableName": "public.watch_history",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.videos",
+          "deleteRule": "cascade"
+        }
+      },
+      "comment": null
+    },
+    {
+      "name": "watch_later",
+      "schema": "public",
+      "columns": {
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": "now()",
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": true,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "gen_random_uuid()",
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": true,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        },
+        "video_id": {
+          "name": "video_id",
+          "type": "uuid",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "uuid"
+        }
+      },
+      "indexes": [
+        {
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "keyName": "watch_later_pkey",
+          "primary": true,
+          "unique": true
+        },
+        {
+          "columnNames": [
+            "user_id",
+            "video_id"
+          ],
+          "composite": true,
+          "constraint": true,
+          "keyName": "watch_later_user_id_video_id_key",
+          "primary": false,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "triggers": [],
+      "foreignKeys": {
+        "watch_later_user_id_fkey": {
+          "columnNames": [
+            "user_id"
+          ],
+          "constraintName": "watch_later_user_id_fkey",
+          "localTableName": "public.watch_later",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.users",
+          "deleteRule": "cascade"
+        },
+        "watch_later_video_id_fkey": {
+          "columnNames": [
+            "video_id"
+          ],
+          "constraintName": "watch_later_video_id_fkey",
+          "localTableName": "public.watch_later",
           "referencedColumnNames": [
             "id"
           ],

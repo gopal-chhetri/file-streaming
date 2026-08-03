@@ -85,11 +85,7 @@ export class UsersService {
     }));
   }
 
-  async updateRole(
-    userId: string,
-    roleName: string,
-    currentUserRole: string,
-  ) {
+  async updateRole(userId: string, roleName: string, currentUserRole: string) {
     if (currentUserRole !== 'admin') {
       throw new ForbiddenException('Only admins can change roles');
     }

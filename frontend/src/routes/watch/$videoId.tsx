@@ -6,6 +6,7 @@ import { useUpdateProgress, useProgress } from '../../hooks/use-watch-history'
 import { sendHeartbeat } from '../../hooks/use-analytics'
 import { VideoPlayer } from '../../components/video-player'
 import { formatViews, timeAgo } from '../../lib/format'
+import { randomUUID } from '../../lib/uuid'
 import { Button } from '../../components/ui/button'
 import { ThumbsUp, ThumbsDown, Share, BookmarkSimple } from '@phosphor-icons/react'
 import { useRef, useCallback } from 'react'
@@ -23,7 +24,7 @@ function WatchPage() {
   const updateProgress = useUpdateProgress()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const lastHeartbeatRef = useRef(0)
-  const sessionId = useRef(crypto.randomUUID()).current
+  const sessionId = useRef(randomUUID()).current
   const hasStarted = useRef(false)
   const hasEnded = useRef(false)
 
@@ -57,23 +58,22 @@ function WatchPage() {
   )
 
   return (
-    <div className="flex h-screen flex-col bg-page">
-      <main className="flex-1 overflow-y-auto">
+    <>
     {isLoading ? (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex items-center justify-center py-16">
         <div className="flex flex-col items-center gap-4">
           <div className="h-16 w-16 animate-shimmer rounded-full" />
           <div className="h-4 w-32 animate-shimmer rounded" />
         </div>
       </div>
     ) : !video ? (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex items-center justify-center py-16">
         <div className="text-center">
           <p className="text-lg text-text-muted">Video not found</p>
         </div>
       </div>
     ) : (
-    <div className="mx-auto max-w-6xl px-4 py-6 space-y-6 animate-in">
+    <div className="mx-auto max-w-6xl space-y-6 animate-in">
       <VideoPlayer
         src={video.hlsUrl || ''}
         poster={video.thumbnailUrl}
@@ -127,8 +127,8 @@ function WatchPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
     )}
-    </main></div>
+    </>
   )
 }

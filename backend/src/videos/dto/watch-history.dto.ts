@@ -11,5 +11,3 @@ export class UpsertProgressDto {
   @Max(100)
   progress!: number;
 }
-
-

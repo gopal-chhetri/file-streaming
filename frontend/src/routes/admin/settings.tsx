@@ -1,6 +1,5 @@
 import { createRoute } from '@tanstack/react-router'
 import { Route as rootRoute } from '../__root'
-import { AdminLayout } from '../../layouts/admin-layout'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Gear } from '@phosphor-icons/react'
@@ -13,7 +12,6 @@ export const Route = createRoute({
 
 function AdminSettings() {
   return (
-    <AdminLayout>
     <div className="mx-auto max-w-lg space-y-6 animate-in">
       <div>
         <h1 className="text-xl font-medium text-text-primary">Settings</h1>
@@ -39,6 +37,5 @@ function AdminSettings() {
         </div>
       </div>
     </div>
-    </AdminLayout>
   )
 }

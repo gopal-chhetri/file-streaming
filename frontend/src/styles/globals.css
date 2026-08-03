@@ -30,6 +30,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --page-bg: #07070a;
+    --page-texture: none;
     --surface: #111116;
     --surface-raised: #181820;
     --border: #22223a;
@@ -65,6 +66,8 @@
 body {
   margin: 0;
   background-color: var(--page-bg);
+  background-image: var(--page-texture, none);
+  background-size: 240px 240px;
   color: var(--text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;

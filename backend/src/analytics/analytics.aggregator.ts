@@ -9,9 +9,12 @@ import { ConfigService } from '@nestjs/config';
 import { Kafka, Consumer, Admin } from 'kafkajs';
 import Redis from 'ioredis';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, type UpdateQuery } from 'mongoose';
 import { VIDEO_HEARTBEAT_TOPIC, HeartbeatEvent } from '../kafka/kafka.service';
-import { DailyAnalytics, RetentionPoint } from './schemas/daily-analytics.schema';
+import {
+  DailyAnalytics,
+  RetentionPoint,
+} from './schemas/daily-analytics.schema';
 
 const SESSION_TTL = 86400;
 const SESSION_PREFIX = 'analytics:session:';
@@ -56,9 +59,7 @@ export class AnalyticsAggregator
       this.logger.log('Analytics aggregator consumer connected');
       this.consume();
     } catch (err) {
-      this.logger.warn(
-        `Analytics aggregator cannot connect to Kafka: ${err}`,
-      );
+      this.logger.warn(`Analytics aggregator cannot connect to Kafka: ${err}`);
     }
   }
 
@@ -112,12 +113,16 @@ export class AnalyticsAggregator
     const retentionPoint: RetentionPoint = {
       position: Math.min(event.position, event.duration),
       viewers: 1,
-      percentage: event.duration > 0
-        ? Math.round((Math.min(event.position, event.duration) / event.duration) * 100)
-        : 0,
+      percentage:
+        event.duration > 0
+          ? Math.round(
+              (Math.min(event.position, event.duration) / event.duration) * 100,
+            )
+          : 0,
     };
 
-    const isCompletion = event.duration > 0 && event.position >= event.duration * 0.9;
+    const isCompletion =
+      event.duration > 0 && event.position >= event.duration * 0.9;
     const watchTime = Math.min(event.position, event.duration);
     const userId = event.userId;
 
@@ -144,7 +149,7 @@ export class AnalyticsAggregator
 
     await this.dailyAnalyticsModel.updateOne(
       { videoId: event.videoId, date },
-      update as any,
+      update as UpdateQuery<DailyAnalytics>,
       { upsert: true },
     );
   }

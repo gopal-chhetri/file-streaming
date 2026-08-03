@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import {
   User,
   SignOut,
@@ -15,7 +15,6 @@ export function UserDropdown() {
   const { user, logout } = useAuth()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-  const navigate = useNavigate()
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -30,7 +29,6 @@ export function UserDropdown() {
   function handleLogout() {
     logout()
     setOpen(false)
-    navigate({ to: '/auth/login' })
   }
 
   if (!user) {
@@ -82,7 +80,7 @@ export function UserDropdown() {
           </div>
 
           <div className="mt-1 space-y-0.5">
-            <DropdownItem to="/library" icon={BookOpen} label="Library" onClick={() => setOpen(false)} />
+            <DropdownItem to="/watch-later" icon={BookOpen} label="Watch Later" onClick={() => setOpen(false)} />
             <DropdownItem to="/watch-history" icon={ClockCounterClockwise} label="History" onClick={() => setOpen(false)} />
 
             {user.role === 'admin' && (

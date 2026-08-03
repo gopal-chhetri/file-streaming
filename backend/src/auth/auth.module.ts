@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { AuthService } from './auth.service';
@@ -19,7 +19,8 @@ import { getPrivateKey, getPublicKey } from './utils/keys';
       privateKey: getPrivateKey(),
       publicKey: getPublicKey(),
       signOptions: {
-        expiresIn: (process.env.JWT_ACCESS_EXPIRY || '15m') as any,
+        expiresIn: (process.env.JWT_ACCESS_EXPIRY ||
+          '15m') as JwtSignOptions['expiresIn'],
         algorithm: 'RS256',
       },
     }),

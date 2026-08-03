@@ -3,10 +3,14 @@ import {
   useContext,
   useState,
   useEffect,
-  useRef,
   type ReactNode,
 } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { useRouter } from '@tanstack/react-router'
 import type { User } from '../types'
+import { notifySessionExpired, resetSessionExpired } from '../lib/api'
+
+/* oxlint-disable react/only-export-components -- auth context module: provider + hook co-located by design */
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000
@@ -23,6 +27,8 @@ interface AuthContextValue {
   }) => Promise<User>
   logout: () => void
   isLoading: boolean
+  sessionExpired: boolean
+  dismissSessionExpired: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -71,8 +77,11 @@ async function fetchUser(token: string): Promise<User> {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
+  const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [sessionExpired, setSessionExpired] = useState(false)
 
   // Periodic refresh
   useEffect(() => {
@@ -82,12 +91,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (newToken) {
         setToken(newToken)
       } else {
-        clearToken()
-        setUser(null)
+        notifySessionExpired()
       }
     }, REFRESH_INTERVAL_MS)
     return () => clearInterval(id)
   }, [user])
+
+  // React to a session expiring anywhere in the app
+  useEffect(() => {
+    function handleExpired() {
+      clearToken()
+      setUser(null)
+      setSessionExpired(true)
+    }
+    window.addEventListener('auth:expired', handleExpired)
+    return () => window.removeEventListener('auth:expired', handleExpired)
+  }, [])
 
   // Hydrate from stored token
   useEffect(() => {
@@ -130,6 +149,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(accessToken)
     const u = await fetchUser(accessToken)
     setUser(u)
+    setSessionExpired(false)
+    resetSessionExpired()
+    queryClient.invalidateQueries()
     return u
   }
 
@@ -154,20 +176,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(accessToken)
     const u = await fetchUser(accessToken)
     setUser(u)
+    setSessionExpired(false)
+    resetSessionExpired()
+    queryClient.invalidateQueries()
     return u
   }
 
   function logout() {
     clearToken()
     setUser(null)
+    setSessionExpired(false)
+    queryClient.clear()
     fetch(`${API_BASE}/auth/logout`, {
       method: 'POST',
       credentials: 'include',
     }).catch(() => {})
+    router.navigate({ to: '/auth/login' })
+  }
+
+  function dismissSessionExpired() {
+    setSessionExpired(false)
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>
+    <AuthContext.Provider
+      value={{ user, login, register, logout, isLoading, sessionExpired, dismissSessionExpired }}
+    >
       {children}
     </AuthContext.Provider>
   )

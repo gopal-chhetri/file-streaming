@@ -1,10 +1,11 @@
-import { Link, useLocation, useNavigate } from '@tanstack/react-router'
+import { Link, useLocation } from '@tanstack/react-router'
   import {
   ClockCounterClockwise,
   Stack,
-  Folder,
+  BookOpen,
   Gear,
   MonitorPlay,
+  FilmStrip,
   CloudArrowUp,
   Sidebar as SidebarIcon,
   SignOut,
@@ -19,9 +20,10 @@ import { useAuth } from '../hooks/use-auth'
 
 const navItems = [
   { to: '/browse', icon: Stack, label: 'Browse' },
-  { to: '/upload', icon: CloudArrowUp, label: 'Upload' },
   { to: '/watch-history', icon: ClockCounterClockwise, label: 'History' },
-  { to: '/library', icon: Folder, label: 'Library' },
+  { to: '/watch-later', icon: BookOpen, label: 'Watch Later' },
+  { to: '/my-videos', icon: FilmStrip, label: 'Your Videos' },
+  { to: '/upload', icon: CloudArrowUp, label: 'Upload' },
 ]
 
 const adminNavItems = [
@@ -41,7 +43,6 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggle, mobile, onClose }: SidebarProps) {
   const location = useLocation()
-  const navigate = useNavigate()
   const { user, logout } = useAuth()
   const isAdmin = user?.role === 'admin'
   const items = isAdmin ? adminNavItems : navItems
@@ -85,9 +86,7 @@ export function Sidebar({ collapsed, onToggle, mobile, onClose }: SidebarProps) 
 
   function handleLogout() {
     logout()
-    navigate({ to: '/auth/login' })
   }
-
   return (
     <aside
       className={clsx(

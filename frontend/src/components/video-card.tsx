@@ -1,14 +1,16 @@
 import { Link } from '@tanstack/react-router'
 import { Play } from '@phosphor-icons/react'
+import { VideoCardMenu } from './video-card-menu'
 import type { Video } from '../types'
 import { formatDuration, formatViews, timeAgo } from '../lib/format'
 
 interface VideoCardProps {
   video: Video
   layout?: 'grid' | 'list'
+  menu?: { context: 'mine' | 'browse' }
 }
 
-export function VideoCard({ video, layout = 'grid' }: VideoCardProps) {
+export function VideoCard({ video, layout = 'grid', menu }: VideoCardProps) {
   if (layout === 'list') {
     return (
       <Link
@@ -42,6 +44,7 @@ export function VideoCard({ video, layout = 'grid' }: VideoCardProps) {
             {timeAgo(video.uploadedAt)}
           </span>
         </div>
+        {menu && <VideoCardMenu video={video} context={menu.context} position="list" />}
       </Link>
     )
   }
@@ -74,9 +77,13 @@ export function VideoCard({ video, layout = 'grid' }: VideoCardProps) {
         )}
       </div>
       <div className="flex gap-3 px-1">
-        <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-subtle ring-1 ring-border transition-all duration-150 group-hover:ring-accent/30">
-          {video.channelAvatar && (
+        <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-accent/20 ring-1 ring-border transition-all duration-150 group-hover:ring-accent/30">
+          {video.channelAvatar ? (
             <img src={video.channelAvatar} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-[11px] font-medium text-accent">
+              {video.channel[0]}
+            </div>
           )}
         </div>
         <div className="min-w-0 flex-1">
@@ -88,6 +95,14 @@ export function VideoCard({ video, layout = 'grid' }: VideoCardProps) {
             {formatViews(video.views)} views · {timeAgo(video.uploadedAt)}
           </p>
         </div>
+        {menu && (
+          <VideoCardMenu
+            video={video}
+            context={menu.context}
+            position="grid"
+            className="self-end"
+          />
+        )}
       </div>
     </Link>
   )

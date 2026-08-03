@@ -53,7 +53,8 @@ export class AnalyticsService {
       .map(([position, { viewers }]) => ({
         position,
         viewers,
-        percentage: totalViews > 0 ? Math.round((viewers / totalViews) * 100) : 0,
+        percentage:
+          totalViews > 0 ? Math.round((viewers / totalViews) * 100) : 0,
       }))
       .sort((a, b) => a.position - b.position);
 

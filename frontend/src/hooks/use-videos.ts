@@ -20,10 +20,11 @@ function toVideo(raw: any): Video {
   }
 }
 
-export function useVideos(filters?: { status?: string; category?: string }) {
+export function useVideos(filters?: { status?: string; category?: string; q?: string }) {
   const params = new URLSearchParams()
   if (filters?.status) params.set('status', filters.status)
   if (filters?.category) params.set('category', filters.category)
+  if (filters?.q) params.set('q', filters.q)
 
   return useQuery({
     queryKey: ['videos', filters],

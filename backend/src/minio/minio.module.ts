@@ -2,7 +2,7 @@ import { Module, Global } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client as MinioClient } from 'minio';
 import { MinioService } from './minio.service';
-import { MINIO_CLIENT } from './minio.constants';
+import { MINIO_CLIENT, MINIO_PRESIGN_CLIENT } from './minio.constants';
 
 @Global()
 @Module({
@@ -35,8 +35,38 @@ import { MINIO_CLIENT } from './minio.constants';
         });
       },
     },
+    {
+      provide: MINIO_PRESIGN_CLIENT,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const publicEndpoint = configService.get<string>(
+          'minio.publicEndpoint',
+          'localhost',
+        );
+        const publicPort = configService.get<number>('minio.publicPort', 9000);
+        const region = configService.get<string>('minio.region', 'us-east-1');
+        const accessKey = configService.get<string>(
+          'minio.accessKey',
+          'minioadmin',
+        );
+        const secretKey = configService.get<string>(
+          'minio.secretKey',
+          'minioadmin',
+        );
+        const useSSL = configService.get<boolean>('minio.useSSL', false);
+
+        return new MinioClient({
+          endPoint: publicEndpoint,
+          port: publicPort,
+          region,
+          useSSL,
+          accessKey,
+          secretKey,
+        });
+      },
+    },
     MinioService,
   ],
-  exports: [MINIO_CLIENT],
+  exports: [MINIO_CLIENT, MINIO_PRESIGN_CLIENT],
 })
 export class MinioModule {}

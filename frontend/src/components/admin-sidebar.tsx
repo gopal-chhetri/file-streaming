@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from '@tanstack/react-router'
+import { Link, useLocation } from '@tanstack/react-router'
 import { Sidebar as SidebarIcon } from '@phosphor-icons/react'
 import {
   MonitorPlay,
@@ -27,12 +27,10 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ collapsed, onToggle }: AdminSidebarProps) {
   const location = useLocation()
-  const navigate = useNavigate()
   const { user, logout } = useAuth()
 
   function handleLogout() {
     logout()
-    navigate({ to: '/auth/login' })
   }
 
   return (

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Inject,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { Client as MinioClient } from 'minio';
 import { MINIO_CLIENT } from '../minio/minio.constants';
 import { Readable } from 'node:stream';
@@ -54,17 +49,21 @@ export class StreamingService {
       let start: number | undefined;
       let end: number | undefined;
 
-      if (range) {
-        const result = range.match(/bytes=(\d+)-(\d*)/);
-        if (result) {
-          start = parseInt(result[1], 10);
-          end = result[2] ? parseInt(result[2], 10) : size - 1;
-          stream = (await this.minio.getObject(
+      const result = range?.match(/bytes=(\d+)-(\d*)/);
+      if (result) {
+        start = parseInt(result[1], 10);
+        end = result[2] ? parseInt(result[2], 10) : size - 1;
+        if (start < size && start <= end) {
+          end = Math.min(end, size - 1);
+          stream = (await this.minio.getPartialObject(
             PROCESSED_BUCKET,
             objectPath,
+            start,
+            end - start + 1,
           )) as Readable;
-          stream = stream as Readable;
         } else {
+          start = undefined;
+          end = undefined;
           stream = (await this.minio.getObject(
             PROCESSED_BUCKET,
             objectPath,
@@ -78,8 +77,8 @@ export class StreamingService {
       }
 
       return { stream, mimeType, size, start, end };
-    } catch (err: any) {
-      if (err.code === 'NotFound') {
+    } catch (err) {
+      if ((err as { code?: string }).code === 'NotFound') {
         throw new NotFoundException('File not found');
       }
       throw err;

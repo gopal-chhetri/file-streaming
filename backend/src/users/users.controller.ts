@@ -16,6 +16,7 @@ import {
   ApiResponse,
   ApiBody,
 } from '@nestjs/swagger';
+import { Request } from 'express';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
@@ -76,16 +77,23 @@ export class UsersController {
   updateRole(
     @Param('id') id: string,
     @Body() dto: UpdateRoleDto,
-    @Req() req: any,
+    @Req() req: Request,
   ) {
-    return this.usersService.updateRole(id, dto.roleName, req.user.role);
+    return this.usersService.updateRole(
+      id,
+      dto.roleName,
+      (req.user as { role: string }).role,
+    );
   }
 
   @Patch(':id/toggle-active')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Toggle user active status (Admin only)' })
-  toggleActive(@Param('id') id: string, @Req() req: any) {
-    return this.usersService.toggleActive(id, req.user.role);
+  toggleActive(@Param('id') id: string, @Req() req: Request) {
+    return this.usersService.toggleActive(
+      id,
+      (req.user as { role: string }).role,
+    );
   }
 
   @Delete(':id')
@@ -93,7 +101,10 @@ export class UsersController {
   @ApiOperation({ summary: 'Delete user (Admin only)' })
   @ApiResponse({ status: 200, description: 'User deleted.' })
   @ApiResponse({ status: 404, description: 'User not found.' })
-  remove(@Param('id') id: string, @Req() req: any) {
-    return this.usersService.deleteUser(id, req.user.role);
+  remove(@Param('id') id: string, @Req() req: Request) {
+    return this.usersService.deleteUser(
+      id,
+      (req.user as { role: string }).role,
+    );
   }
 }
