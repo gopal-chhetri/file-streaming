@@ -4,6 +4,12 @@
 Phase 5: Streaming — complete. Async upload/processing/moderation pipeline implemented.
 
 ## Recently Completed
+- **Views count fixed + progress bars + watch-later auto-remove**:
+  - Views: `analytics.aggregator.ts` now counts a view on `play` heartbeats (deduped per session+day via Redis `setnx` `analytics:view:{videoId}:{sessionId}:{date}`), moves `uniqueViewers` there too; `flushSession` (on `end`) keeps only watch-time/completions/retention. `videos.service` injects `@InjectModel(DailyAnalytics.name)` (Mongoose; `MongooseModule.forFeature` added to `videos.module`) → `getViewsMap()` aggregates `daily_analytics.totalViews` per videoId; `VideoResult` gains `views`; `mapVideo(video, views)` + batch `mapVideos()` / single `mapVideoWithViews()` replace all call sites. Frontend mappers (`use-videos`/`use-my-videos`/`use-watch-later`) now `views: raw.views ?? 0` instead of hardcoded 0. Verified: browse returns real counts; play heartbeat → rana 0→1; duplicate same-session play did NOT double count.
+  - Progress bars: new `useWatchProgressMap(enabled)` + `enabled` param on `useWatchHistory` (guest-safe: disabled when no user). Browse + watch-later pages merge `watchProgress: progressMap[video.id] || 0` into each `VideoCard` (grid/list bottom bar already supported). History page already shows its inline bar.
+  - Watch-later auto-remove: `upsertProgress` does `nativeDelete(WatchLater, {user, video})` when `progress >= 100`; frontend `useUpdateProgress.onSuccess` invalidates `['watch-later']` at 100; watch-later page also filters `< 100`. Verified: add → present; 40% → still there; 100% → gone from API + DB.
+  - Library page REPLACED per user decision: deleted `routes/library/`, new `routes/watch-later.tsx` (grid + browse menu) + sidebar/topbar/user-dropdown now link "Watch Later" `/watch-later` (BookOpen icon, `Folder` import dropped); `watch-history.tsx` rows now show thumbnail+title+channel (from `getHistory`, which now populates `['video.user']` and returns `title`/`thumbnailUrl`/`channel`); `WatchHistory` type extended. Verified live via API.
+  - NOTE: `getHistory` return-type change → backend tsc/eslint clean after prettier reformat.
 - **Sign-out redirects to login + delete-own-video**:
   - `use-auth.tsx` `logout()` now also calls `queryClient.clear()` (drops all cached content so admin lists/my-videos/browse don't linger after sign-out) and `router.navigate({ to: '/auth/login' })` via `useRouter` (provider sits inside RouterProvider). Session-expiry keeps the dismissible popup (guest browsing) — per user decision, only explicit sign-out redirects.
   - Backend: `videos.service.removeVideo(videoId, userId)` — 404 if missing, 403 if `video.user.id !== userId` (populate user); deletes `watch_history` rows (`nativeDelete`) first (FK), then MinIO cleanup: `removeObject('raw-uploads', video.filename)` + `listObjectsV2`+`removeObjects` for prefix `${video.id}/` in `processed` and `thumbnails` buckets (new `PROCESSED_BUCKET`/`THUMBNAILS_BUCKET` consts + `listObjectKeys`/`removeObjectsByPrefix` helpers). `videos.controller` new `@Delete(':id')` (JwtAuthGuard, returns `{ message }` 200).
@@ -44,6 +50,16 @@ Phase 5: Streaming — complete. Async upload/processing/moderation pipeline imp
   - Cleaned backend lint: removed unused imports (`BadRequestException` in videos.service, `Max` in heartbeat.dto, `PROCESSED_BUCKET` in kafka.service) + prettier formatting via `eslint --fix`
 
 ## Files Created / Changed
+- `frontend/src/routes/watch-later.tsx` — new (replaces deleted `routes/library/`)
+- `frontend/src/hooks/use-watch-history.ts` — `enabled` param, `useWatchProgressMap`, invalidate watch-later on 100
+- `frontend/src/components/sidebar.tsx`, `topbar.tsx`, `user-dropdown.tsx` — Library → Watch Later
+- `frontend/src/routes/browse/index.tsx`, `watch-later.tsx` — progress bars via progress map
+- `frontend/src/hooks/use-videos.ts`, `use-my-videos.ts`, `use-watch-later.ts` — real `views`
+- `backend/src/analytics/analytics.aggregator.ts` — view counted on `play` (deduped)
+- `backend/src/videos/videos.service.ts` — Mongo views map, `VideoResult.views`, watch-later removal ≥100, `getHistory` title/thumbnail/channel
+- `backend/src/videos/videos.module.ts` — Mongoose `DailyAnalytics` forFeature
+- `frontend/src/routes/watch-history.tsx` — thumbnail/title/channel rows
+- `frontend/src/types/index.ts` — `WatchHistory` extended
 - `frontend/src/layouts/app-shell.tsx` — new; `layouts/browse-layout.tsx` + `layouts/admin-layout.tsx` deleted
 - `frontend/src/components/auth/login-form.tsx`, `login-modal.tsx` — new
 - `frontend/src/routes/__root.tsx` — AppShell wrapper
@@ -62,13 +78,13 @@ Phase 5: Streaming — complete. Async upload/processing/moderation pipeline imp
 - `deployments/local-dev/` — frontend dev compose wiring
 
 ## Next
-Browser E2E: sign out (user + admin) → redirected to `/auth/login`, no content visible; my-videos trash → confirm → removed (and gone from browse); topbar search → `/browse?q=…`.
+Browser E2E: sign out (user + admin) → redirected to `/auth/login`, no content visible; my-videos trash → confirm → removed (and gone from browse); topbar search → `/browse?q=…`; watch-later sidebar entry; progress bars on browse/watch-later cards; video finishes → removed from watch-later.
 
 ## Cross-check Notes
 - ✅ Backend `tsc --noEmit --incremental false` passes; `eslint src` 0 errors
 - ✅ Frontend `tsc -b` (build) + `oxlint` pass
 - ✅ Transcoding worker `tsc --noEmit` passes
-- ✅ Backend restarted (`docker compose restart backend`) — search `q` + `DELETE /videos/:id` live, verified via curl
+- ✅ Backend restarted (`docker compose restart backend`) — views + watch-later auto-remove + history enrichment live, verified via curl
 - ⚠️ Backend `jest` fails: ESM `SyntaxError` on `@mikro-orm/core` — pre-existing infra issue (health spec unchanged), unrelated to feature
 - ⚠️ `backend/dist/` is root-owned (docker build) — run `tsc --incremental false` or fix ownership for local builds
 - ⚠️ Changes are uncommitted

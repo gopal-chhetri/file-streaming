@@ -7,6 +7,9 @@ import {
 } from '@nestjs/common';
 import { EntityManager, FilterQuery } from '@mikro-orm/core';
 import { Client as MinioClient } from 'minio';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { DailyAnalytics } from '../analytics/schemas/daily-analytics.schema';
 import { Video, VideoStatus } from './entities/video.entity';
 import { WatchHistory } from './entities/watch-history.entity';
 import { WatchLater } from './entities/watch-later.entity';
@@ -45,6 +48,7 @@ export interface VideoResult {
   thumbnailUrl: string | null;
   failureReason: string | null;
   duration?: number;
+  views: number;
   user: User;
   createdAt: Date;
   updatedAt: Date;
@@ -60,6 +64,8 @@ export class VideosService {
     @Inject(MINIO_PRESIGN_CLIENT)
     private readonly presignMinio: MinioClient,
     private readonly kafka: KafkaService,
+    @InjectModel(DailyAnalytics.name)
+    private readonly dailyAnalyticsModel: Model<DailyAnalytics>,
   ) {}
 
   async initiateUpload(
@@ -158,7 +164,7 @@ export class VideosService {
       userId: video.user.id,
     });
 
-    return this.mapVideo(video);
+    return this.mapVideoWithViews(video);
   }
 
   async completeMultipartUpload(
@@ -257,7 +263,33 @@ export class VideosService {
     } catch {}
   }
 
-  private mapVideo(video: Video): VideoResult {
+  private async getViewsMap(videoIds: string[]): Promise<Map<string, number>> {
+    const ids = videoIds.filter(Boolean);
+    if (ids.length === 0) return new Map();
+    try {
+      const docs = await this.dailyAnalyticsModel
+        .aggregate<{ _id: string; views: number }>([
+          { $match: { videoId: { $in: ids } } },
+          { $group: { _id: '$videoId', views: { $sum: '$totalViews' } } },
+        ])
+        .exec();
+      return new Map(docs.map((d) => [d._id, d.views]));
+    } catch {
+      return new Map();
+    }
+  }
+
+  private async mapVideos(videos: Video[]): Promise<VideoResult[]> {
+    const views = await this.getViewsMap(videos.map((v) => v.id));
+    return videos.map((v) => this.mapVideo(v, views.get(v.id) ?? 0));
+  }
+
+  private async mapVideoWithViews(video: Video): Promise<VideoResult> {
+    const views = await this.getViewsMap([video.id]);
+    return this.mapVideo(video, views.get(video.id) ?? 0);
+  }
+
+  private mapVideo(video: Video, views = 0): VideoResult {
     return {
       ...video,
       size: String(video.size),
@@ -269,6 +301,7 @@ export class VideosService {
         ? `/api/videos/${video.id}/thumbnail`
         : null,
       failureReason: video.failureReason ?? null,
+      views,
     };
   }
 
@@ -288,7 +321,7 @@ export class VideosService {
       populate: ['user'],
       orderBy: { createdAt: 'DESC' },
     });
-    return videos.map((v) => this.mapVideo(v));
+    return this.mapVideos(videos);
   }
 
   async findByUser(userId: string): Promise<VideoResult[]> {
@@ -300,7 +333,7 @@ export class VideosService {
         orderBy: { createdAt: 'DESC' },
       },
     );
-    return videos.map((v) => this.mapVideo(v));
+    return this.mapVideos(videos);
   }
 
   async findById(id: string): Promise<VideoResult> {
@@ -308,7 +341,7 @@ export class VideosService {
     if (!video) {
       throw new NotFoundException('Video not found');
     }
-    return this.mapVideo(video);
+    return this.mapVideoWithViews(video);
   }
 
   async getThumbnailObjectKey(id: string): Promise<string | null> {
@@ -345,6 +378,11 @@ export class VideosService {
     }
 
     await this.em.flush();
+
+    if (progress >= 100) {
+      await this.em.nativeDelete(WatchLater, { user: userId, video: videoId });
+    }
+
     return { videoId, progress, watchedAt: entry.watchedAt };
   }
 
@@ -411,7 +449,7 @@ export class VideosService {
     }
 
     await this.em.flush();
-    return this.mapVideo(
+    return this.mapVideoWithViews(
       await this.em.findOneOrFail(Video, { id }, { populate: ['user'] }),
     );
   }
@@ -435,7 +473,7 @@ export class VideosService {
     }
 
     await this.em.flush();
-    return this.mapVideo(video);
+    return this.mapVideoWithViews(video);
   }
 
   async reportVideo(
@@ -461,7 +499,7 @@ export class VideosService {
     });
     this.em.persist(log);
     await this.em.flush();
-    return this.mapVideo(video);
+    return this.mapVideoWithViews(video);
   }
 
   async addToWatchLater(userId: string, videoId: string): Promise<void> {
@@ -494,6 +532,6 @@ export class VideosService {
         orderBy: { createdAt: 'DESC' },
       },
     );
-    return entries.map((e) => this.mapVideo(e.video));
+    return this.mapVideos(entries.map((e) => e.video));
   }
 }

@@ -12,7 +12,7 @@ function toVideo(raw: any): Video {
     channel: raw.user?.username || 'Unknown',
     channelAvatar: raw.user?.avatarUrl,
     uploadedAt: raw.createdAt,
-    views: 0,
+    views: raw.views ?? 0,
     status: raw.status || 'pending',
     tags: [],
     hlsUrl: raw.hlsUrl,

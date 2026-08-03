@@ -1,13 +1,26 @@
+import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import type { WatchHistory } from '../types'
 
-export function useWatchHistory() {
+export function useWatchHistory(enabled = true) {
   return useQuery({
     queryKey: ['watch-history'],
+    enabled,
     queryFn: () => api<WatchHistory[]>('/watch-history'),
     staleTime: 60_000,
   })
+}
+
+export function useWatchProgressMap(enabled = true) {
+  const { data } = useWatchHistory(enabled)
+  return useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const h of data ?? []) {
+      map[h.videoId] = h.progress
+    }
+    return map
+  }, [data])
 }
 
 export function useUpdateProgress() {
@@ -38,6 +51,11 @@ export function useUpdateProgress() {
     onError: (_err, _vars, context) => {
       if (context?.previous) {
         queryClient.setQueryData(['watch-history'], context.previous)
+      }
+    },
+    onSuccess: (_data, { progress }) => {
+      if (progress >= 100) {
+        queryClient.invalidateQueries({ queryKey: ['watch-later'] })
       }
     },
   })

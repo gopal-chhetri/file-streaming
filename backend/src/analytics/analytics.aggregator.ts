@@ -103,9 +103,38 @@ export class AnalyticsAggregator
 
     await pipeline.exec();
 
-    if (event.eventType === 'end') {
+    if (event.eventType === 'play') {
+      await this.recordView(event);
+    } else if (event.eventType === 'end') {
       await this.flushSession(event);
     }
+  }
+
+  private async recordView(event: HeartbeatEvent) {
+    const date = event.timestamp.slice(0, 10);
+    const viewKey = `analytics:view:${event.videoId}:${event.sessionId}:${date}`;
+    const isNew = await this.redis.setnx(viewKey, '1');
+    await this.redis.expire(viewKey, SESSION_TTL * 2);
+    if (!isNew) return;
+
+    const update: UpdateQuery<DailyAnalytics> = { $inc: { totalViews: 1 } };
+    if (event.userId) {
+      const userKey = `analytics:unique:${event.videoId}:${date}`;
+      const added = await this.redis.sadd(userKey, event.userId);
+      await this.redis.expire(userKey, SESSION_TTL * 2);
+      if (added) {
+        update.$inc = {
+          ...(update.$inc as Record<string, number>),
+          uniqueViewers: 1,
+        };
+      }
+    }
+
+    await this.dailyAnalyticsModel.updateOne(
+      { videoId: event.videoId, date },
+      update as UpdateQuery<DailyAnalytics>,
+      { upsert: true },
+    );
   }
 
   private async flushSession(event: HeartbeatEvent) {
@@ -124,28 +153,14 @@ export class AnalyticsAggregator
     const isCompletion =
       event.duration > 0 && event.position >= event.duration * 0.9;
     const watchTime = Math.min(event.position, event.duration);
-    const userId = event.userId;
 
     const update: Record<string, unknown> = {
       $inc: {
-        totalViews: 1,
         totalWatchTimeSeconds: Math.round(watchTime),
         ...(isCompletion ? { completions: 1 } : {}),
       },
       $push: { retentionCurve: retentionPoint },
     };
-
-    if (userId) {
-      const uniqueKey = `analytics:unique:${event.videoId}:${date}`;
-      const added = await this.redis.sadd(uniqueKey, userId);
-      await this.redis.expire(uniqueKey, SESSION_TTL * 2);
-      if (added) {
-        update.$inc = {
-          ...(update.$inc as Record<string, number>),
-          uniqueViewers: 1,
-        };
-      }
-    }
 
     await this.dailyAnalyticsModel.updateOne(
       { videoId: event.videoId, date },

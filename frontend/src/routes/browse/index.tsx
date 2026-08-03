@@ -2,6 +2,8 @@ import { createRoute, useNavigate } from '@tanstack/react-router'
 import { Route as rootRoute } from '../__root'
 import { useState } from 'react'
 import { useVideos } from '../../hooks/use-videos'
+import { useWatchProgressMap } from '../../hooks/use-watch-history'
+import { useAuth } from '../../hooks/use-auth'
 import { VideoCard } from '../../components/video-card'
 import { FilterPills } from '../../components/filter-pills'
 import { List, SquaresFour, MagnifyingGlass, X } from '@phosphor-icons/react'
@@ -31,6 +33,8 @@ function BrowsePage() {
   const { q } = Route.useSearch()
   const [layout, setLayout] = useState<'grid' | 'list'>('grid')
   const [category, setCategory] = useState<string | undefined>()
+  const { user } = useAuth()
+  const progressMap = useWatchProgressMap(!!user)
   const { data: videos, isLoading } = useVideos({ status: 'active', category, q: q || undefined })
 
   return (
@@ -109,7 +113,15 @@ function BrowsePage() {
           )}
         >
           {videos?.map((video) => (
-            <VideoCard key={video.id} video={video} layout={layout} menu={{ context: 'browse' }} />
+            <VideoCard
+              key={video.id}
+              video={{
+                ...video,
+                watchProgress: progressMap[video.id] || 0,
+              }}
+              layout={layout}
+              menu={{ context: 'browse' }}
+            />
           ))}
         </div>
       )}

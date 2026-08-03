@@ -1,6 +1,8 @@
 import { createRoute } from '@tanstack/react-router'
 import { Route as rootRoute } from './__root'
 import { useWatchLater } from '../hooks/use-watch-later'
+import { useWatchProgressMap } from '../hooks/use-watch-history'
+import { useAuth } from '../hooks/use-auth'
 import { VideoCard } from '../components/video-card'
 import { BookOpen } from '@phosphor-icons/react'
 
@@ -12,6 +14,10 @@ export const Route = createRoute({
 
 function WatchLaterPage() {
   const { data: watchLater, isLoading } = useWatchLater()
+  const { user } = useAuth()
+  const progressMap = useWatchProgressMap(!!user)
+  const visible =
+    watchLater?.filter((v) => (progressMap[v.id] ?? 0) < 100) ?? []
 
   return (
     <div className="space-y-6 animate-in">
@@ -31,10 +37,17 @@ function WatchLaterPage() {
             </div>
           ))}
         </div>
-      ) : watchLater && watchLater.length > 0 ? (
+      ) : visible.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {watchLater.map((video) => (
-            <VideoCard key={video.id} video={video} menu={{ context: 'browse' }} />
+          {visible.map((video) => (
+            <VideoCard
+              key={video.id}
+              video={{
+                ...video,
+                watchProgress: progressMap[video.id] || 0,
+              }}
+              menu={{ context: 'browse' }}
+            />
           ))}
         </div>
       ) : (
