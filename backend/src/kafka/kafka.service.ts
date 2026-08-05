@@ -60,7 +60,7 @@ export class KafkaService implements OnModuleInit, OnApplicationShutdown {
     this.producer.on('producer.disconnect', async () => {
       if (this.reconnecting) return;
       this.reconnecting = true;
-      this.logger.warn('Producer disconnected — reconnecting...');
+      this.logger.warn('Producer disconnected - reconnecting...');
       try {
         await this.producer.connect();
         this.logger.log('Producer reconnected');
@@ -96,7 +96,7 @@ export class KafkaService implements OnModuleInit, OnApplicationShutdown {
       this.logger.log('Kafka producer connected');
     } catch (err) {
       this.logger.warn(
-        `Kafka unavailable — events will not be published: ${err}`,
+        `Kafka unavailable - events will not be published: ${err}`,
       );
     }
   }

@@ -304,7 +304,7 @@ function EditVideoDialog({
           Cancel
         </Button>
         <Button onClick={save} disabled={saving || !title.trim()}>
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? 'Saving...' : 'Save'}
         </Button>
       </div>
     </ModalShell>
@@ -506,7 +506,7 @@ function ReportDialog({
           Cancel
         </Button>
         <Button variant="danger" onClick={submit} disabled={submitting}>
-          {submitting ? 'Submitting…' : 'Report'}
+          {submitting ? 'Submitting...' : 'Report'}
         </Button>
       </div>
     </ModalShell>

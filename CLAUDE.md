@@ -1,4 +1,4 @@
-# CLAUDE.md — Agent Instructions
+# CLAUDE.md: Agent Instructions
 
 ## Project Structure
 
@@ -23,10 +23,10 @@ file-streaming/
 
 Before any code changes, read these files in order:
 
-1. `.claude/PRD.md` — product requirements
-2. `.claude/ARCHITECTURE.md` — tech stack, data flow, deployment
-3. `.claude/DESIGN.md` — UI/UX design references
-4. `.claude/PHASES.md` — build phase checklist
-5. `.claude/RULES.md` — coding conventions and constraints
-6. `.claude/MEMORY.md` — current session progress
+1. `.claude/PRD.md`: product requirements
+2. `.claude/ARCHITECTURE.md`: tech stack, data flow, deployment
+3. `.claude/DESIGN.md`: UI/UX design references
+4. `.claude/PHASES.md`: build phase checklist
+5. `.claude/RULES.md`: coding conventions and constraints
+6. `.claude/MEMORY.md`: current session progress
     After each session, update `.claude/MEMORY.md` with progress made.

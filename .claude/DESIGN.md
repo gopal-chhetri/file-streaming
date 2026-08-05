@@ -1,24 +1,24 @@
 # Aurora Design System
 
 ## Brand
-- **Name**: "aurora" — lowercase, weight 500, no logomark
+- **Name**: "aurora": lowercase, weight 500, no logomark
 - **Typeface**: Geist (Inter fallback)
 - **Weights**: 400 body, 500 labels/headings
-- **Voice**: Vibrant, cinematic, ethereal. Named after the Northern Lights — the UI should feel like a glowing night sky.
+- **Voice**: Vibrant, cinematic, ethereal. Named after the Northern Lights: the UI should feel like a glowing night sky.
 
 ## Mode
-- **Surface**: Operate — users browse, discover, watch, and manage videos. Design serves speed and delight.
+- **Surface**: Operate: users browse, discover, watch, and manage videos. Design serves speed and delight.
 
 ## Color System
 
 ### Concept
-Inspired by the aurora borealis. The palette sweeps from deep space (dark bg) through indigo, cyan, and violet — like the lights dancing across the sky. Light mode keeps a cooler, airy feel with the same spectral progression.
+Inspired by the aurora borealis. The palette sweeps from deep space (dark bg) through indigo, cyan, and violet: like the lights dancing across the sky. Light mode keeps a cooler, airy feel with the same spectral progression.
 
 ### Core palette
 
 | Token | Light | Dark | Purpose |
 |-------|-------|------|---------|
-| `--page-bg` | `#f8f7fa` | `#07070a` | Page background — cool off-white / deep space |
+| `--page-bg` | `#f8f7fa` | `#07070a` | Page background: cool off-white / deep space |
 | `--surface` | `#ffffff` | `#111116` | Card/surface background |
 | `--surface-raised` | `#fcfcff` | `#181820` | Hovered/raised surface |
 | `--border` | `#e8e6f0` | `#22223a` | Default border |
@@ -28,20 +28,20 @@ Inspired by the aurora borealis. The palette sweeps from deep space (dark bg) th
 | `--text-secondary` | `#6b6a80` | `#a09fb8` | Secondary text |
 | `--text-muted` | `#9c9bb0` | `#6b6a84` | Muted/placeholder |
 
-| `--accent` | `#6366f1` | `#818cf8` | Primary accent — indigo (aurora core) |
+| `--accent` | `#6366f1` | `#818cf8` | Primary accent: indigo (aurora core) |
 | `--accent-glow` | `rgba(99, 102, 241, .25)` | `rgba(129, 140, 248, .35)` | Accent glow |
 | `--accent-bg` | `#eef2ff` | `#1e1e3a` | Accent background tint |
 | `--accent-text` | `#4338ca` | `#a5b4fc` | Text on accent bg |
 
-| `--secondary` | `#06b6d4` | `#22d3ee` | Secondary accent — cyan (aurora edge) |
+| `--secondary` | `#06b6d4` | `#22d3ee` | Secondary accent: cyan (aurora edge) |
 | `--secondary-glow` | `rgba(6, 182, 212, .2)` | `rgba(34, 211, 238, .3)` | Cyan glow |
 
-| `--tertiary` | `#8b5cf6` | `#a78bfa` | Tertiary accent — violet (aurora tail) |
+| `--tertiary` | `#8b5cf6` | `#a78bfa` | Tertiary accent: violet (aurora tail) |
 | `--tertiary-glow` | `rgba(139, 92, 246, .2)` | `rgba(167, 139, 250, .3)` | Violet glow |
 
-| `--success` | `#10b981` | `#34d399` | Success — emerald |
-| `--warning` | `#f59e0b` | `#fbbf24` | Warning — amber |
-| `--danger` | `#ef4444` | `#f87171` | Danger — red |
+| `--success` | `#10b981` | `#34d399` | Success: emerald |
+| `--warning` | `#f59e0b` | `#fbbf24` | Warning: amber |
+| `--danger` | `#ef4444` | `#f87171` | Danger: red |
 
 ### Gradient direction
 Progress bars and decorative elements sweep **indigo → cyan → violet** (left to right), mimicking the aurora's colour layering.
@@ -56,7 +56,7 @@ Progress bars and decorative elements sweep **indigo → cyan → violet** (left
 
 ## Typography
 - **Body**: `--font-sans: 'Geist', 'Inter', system-ui, sans-serif`
-- **Mono**: `--font-mono: 'JetBrains Mono', 'Fira Code', monospace` — timestamps & bytes only
+- **Mono**: `--font-mono: 'JetBrains Mono', 'Fira Code', monospace`: timestamps & bytes only
 - **Scale**: text-xs(12) → text-sm(14) → text-base(16) → text-lg(18) → text-xl(20) → text-2xl(24) → text-3xl(30)
 - **Line-height**: 1.5 body, 1.35 headings
 - **Weight**: only 400 (body) and 500 (labels, headings)
@@ -69,7 +69,7 @@ Progress bars and decorative elements sweep **indigo → cyan → violet** (left
 
 ## Motion
 - **Duration**: 150ms micro-interactions, 250ms transitions, 350ms page enters
-- **Easing**: `cubic-bezier(.4,0,.2,1)` — standard curve for everything
+- **Easing**: `cubic-bezier(.4,0,.2,1)`: standard curve for everything
 - **Hover lift**: card `translateY(-2px)` + `box-shadow` transition
 - **Glow**: `box-shadow` transition for accent glow on interactive elements
 - **Sidebar**: collapse/expand with width transition

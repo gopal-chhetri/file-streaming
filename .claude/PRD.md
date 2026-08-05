@@ -4,9 +4,9 @@
 A self-hosted "mini YouTube / Udemy" platform: users upload video, it gets transcoded into adaptive HLS, streamed to viewers, tracked for engagement analytics, and managed through an admin dashboard.
 
 ## Target Users & Roles
-- **Admin** — platform operators with full access: moderate content (approve/reject uploads), manage users, view aggregate analytics, system configuration.
-- **Staff** — content creators/managers who upload videos, manage their own content, and view their own analytics.
-- **User** — viewers who watch videos, maintain watch history, resume playback. Baseline role assigned on signup.
+- **Admin**: platform operators with full access: moderate content (approve/reject uploads), manage users, view aggregate analytics, system configuration.
+- **Staff**: content creators/managers who upload videos, manage their own content, and view their own analytics.
+- **User**: viewers who watch videos, maintain watch history, resume playback. Baseline role assigned on signup.
 
 ## Domain
 `streaming.soylab.dpdns.org`

@@ -91,7 +91,7 @@ export class AuthService {
 
     // Detection of refresh token reuse
     if (storedToken.revokedAt) {
-      // The token was already used — potential theft! Revoke the entire family
+      // The token was already used - potential theft! Revoke the entire family
       await this.revokeFamily(storedToken.familyId);
       throw new UnauthorizedException(
         'Refresh token reuse detected. All sessions revoked.',

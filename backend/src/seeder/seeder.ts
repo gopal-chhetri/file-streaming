@@ -85,7 +85,7 @@ async function seed() {
     const role = await em.findOne(Role, { name: userData.role });
     if (!role) {
       console.error(
-        `Role '${userData.role}' not found — skipping user ${userData.email}`,
+        `Role '${userData.role}' not found - skipping user ${userData.email}`,
       );
       continue;
     }

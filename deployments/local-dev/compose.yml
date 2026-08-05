@@ -2,7 +2,7 @@ name: file-streaming
 
 services:
   # ==========================================================================
-  # Traefik — Reverse proxy (single entry point, domain-based routing)
+  # Traefik: Reverse proxy (single entry point, domain-based routing)
   # ==========================================================================
   traefik:
     image: traefik:latest
@@ -21,7 +21,7 @@ services:
       - --entrypoints.web.address=:80
 
   # ==========================================================================
-  # PostgreSQL — Source of truth for relational data
+  # PostgreSQL: Source of truth for relational data
   # ==========================================================================
   postgres:
     image: postgres:16-alpine
@@ -42,7 +42,7 @@ services:
       retries: 5
 
   # ==========================================================================
-  # Redis — Caching, rate limiting, ephemeral session state
+  # Redis: Caching, rate limiting, ephemeral session state
   # ==========================================================================
   redis:
     image: redis:7-alpine
@@ -73,7 +73,7 @@ services:
       - traefik.http.services.redis.loadbalancer.server.port=8081
 
   # ==========================================================================
-  # MinIO — S3-compatible object storage (raw uploads + processed HLS)
+  # MinIO: S3-compatible object storage (raw uploads + processed HLS)
   # ==========================================================================
   minio:
     image: minio/minio:latest
@@ -99,7 +99,7 @@ services:
       - traefik.http.services.minio.loadbalancer.server.port=9001
 
   # ==========================================================================
-  # Kafka + Zookeeper — Async messaging (transcoding triggers, heartbeats)
+  # Kafka + Zookeeper: Async messaging (transcoding triggers, heartbeats)
   # ==========================================================================
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
@@ -149,7 +149,7 @@ services:
       - traefik.http.services.kafka.loadbalancer.server.port=8080
 
   # ==========================================================================
-  # MongoDB — Analytics rollups (flexible document schema)
+  # MongoDB: Analytics rollups (flexible document schema)
   # ==========================================================================
   mongodb:
     image: mongo:7
@@ -185,7 +185,7 @@ services:
       - traefik.http.services.mongo.loadbalancer.server.port=8081
 
   # ==========================================================================
-  # Backend — NestJS API
+  # Backend: NestJS API
   # ==========================================================================
   backend:
     container_name: streaming-backend
@@ -218,7 +218,7 @@ services:
       - traefik.http.services.backend.loadbalancer.server.port=3000
 
   # ==========================================================================
-  # Frontend — Aura React + Vite (served by nginx)
+  # Frontend: Aura React + Vite (served by nginx)
   # ==========================================================================
   frontend:
     container_name: streaming-frontend
@@ -238,7 +238,7 @@ services:
       - traefik.http.services.frontend.loadbalancer.server.port=5173
 
   # ==========================================================================
-  # Transcoding Worker — Kafka consumer + ffmpeg HLS transcoder
+  # Transcoding Worker: Kafka consumer + ffmpeg HLS transcoder
   # ==========================================================================
   transcoding-worker:
     container_name: streaming-transcoding-worker
