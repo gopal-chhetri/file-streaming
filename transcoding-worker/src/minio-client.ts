@@ -1,6 +1,6 @@
 import { Client as MinioClient } from 'minio';
 import { createWriteStream, createReadStream, mkdirSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 
 export function createMinioClient(): MinioClient {
@@ -23,11 +23,9 @@ export async function downloadFile(
     mkdirSync(destDir, { recursive: true });
   }
 
-  const destPath = join(destDir, objectKey);
-  const dir = join(destDir, objectKey.split('/').slice(0, -1).join('/'));
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
+  // Only the last path segment: object keys must never decide where the file
+  // lands, or a key containing "../" could write outside the work directory.
+  const destPath = join(destDir, `input-${basename(objectKey) || 'source'}`);
 
   const stream = await minio.getObject(bucket, objectKey);
   const writeStream = createWriteStream(destPath);

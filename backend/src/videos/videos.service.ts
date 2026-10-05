@@ -4,7 +4,9 @@ import {
   NotFoundException,
   ForbiddenException,
   InternalServerErrorException,
+  ConflictException,
 } from '@nestjs/common';
+import { extname } from 'node:path';
 import { EntityManager, FilterQuery } from '@mikro-orm/core';
 import { Client as MinioClient } from 'minio';
 import { InjectModel } from '@nestjs/mongoose';
@@ -22,12 +24,16 @@ import { UpdateVideoStatusDto } from './dto/update-video-status.dto';
 import { CompleteMultipartDto } from './dto/complete-multipart.dto';
 import { MINIO_CLIENT, MINIO_PRESIGN_CLIENT } from '../minio/minio.constants';
 import { KafkaService } from '../kafka/kafka.service';
+import Redis from 'ioredis';
+import { invalidateVideoStatus } from '../common/video-status';
 
 const RAW_UPLOADS_BUCKET = 'raw-uploads';
 const PROCESSED_BUCKET = 'processed';
 const THUMBNAILS_BUCKET = 'thumbnails';
 const MULTIPART_THRESHOLD = 100 * 1024 * 1024; // 100MB
 const PART_SIZE = 10 * 1024 * 1024; // 10MB
+/** Presigned upload URLs; an hour is plenty to start (and finish) an upload. */
+const UPLOAD_URL_TTL_SECONDS = 60 * 60;
 
 interface MultipartUploadClient {
   initiateNewMultipartUpload(
@@ -35,6 +41,12 @@ interface MultipartUploadClient {
     objectName: string,
     options: Record<string, unknown>,
   ): Promise<string>;
+}
+
+/** The only uploader fields a video response exposes. */
+export interface PublicUser {
+  id: string;
+  username: string;
 }
 
 export interface VideoResult {
@@ -49,10 +61,22 @@ export interface VideoResult {
   failureReason: string | null;
   duration?: number;
   views: number;
-  user: User;
+  user: PublicUser;
   createdAt: Date;
   updatedAt: Date;
   hlsUrl?: string;
+}
+
+/** `<videoId>/source.<ext>`, with the extension reduced to a safe token. */
+export function rawObjectKey(videoId: string, filename: string): string {
+  const ext = extname(filename).slice(1).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10);
+  return `${videoId}/source${ext ? `.${ext}` : ''}`;
+}
+
+export function assertOwner(video: Video, userId: string, action: string): void {
+  if (video.user.id !== userId) {
+    throw new ForbiddenException(`You can only ${action} your own videos`);
+  }
 }
 
 @Injectable()
@@ -66,6 +90,7 @@ export class VideosService {
     private readonly kafka: KafkaService,
     @InjectModel(DailyAnalytics.name)
     private readonly dailyAnalyticsModel: Model<DailyAnalytics>,
+    @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
 
   async initiateUpload(
@@ -80,19 +105,23 @@ export class VideosService {
     partSize?: number;
     totalParts?: number;
   }> {
-    const objectKey = `${dto.filename}`;
     const userRef = this.em.getReference(User, userId);
 
     const video = this.em.create(Video, {
       title: dto.title,
       description: dto.description,
       filename: dto.filename,
+      objectKey: '', // set below once the ID exists
       mimeType: dto.mimeType,
       size: String(dto.size),
       status: VideoStatus.PENDING,
       user: userRef,
     });
 
+    // Keyed by video ID: client filenames collide between users and may
+    // contain path segments.
+    video.objectKey = rawObjectKey(video.id, dto.filename);
+    const objectKey = video.objectKey;
     await this.em.flush();
 
     try {
@@ -114,7 +143,7 @@ export class VideosService {
       const uploadUrl = await this.presignMinio.presignedPutObject(
         RAW_UPLOADS_BUCKET,
         objectKey,
-        24 * 60 * 60,
+        UPLOAD_URL_TTL_SECONDS,
       );
 
       return { videoId: video.id, uploadUrl, objectKey };
@@ -127,20 +156,35 @@ export class VideosService {
 
   async getUploadPartUrl(
     videoId: string,
+    userId: string,
     partNumber: number,
     uploadId: string,
   ): Promise<{ url: string }> {
-    const video = await this.em.findOne(Video, { id: videoId });
-    if (!video) throw new NotFoundException('Video not found');
+    const video = await this.findUploadingVideo(videoId, userId);
 
     const url = await this.presignMinio.presignedUrl(
       'PUT',
       RAW_UPLOADS_BUCKET,
-      video.filename,
-      24 * 60 * 60,
+      video.objectKey,
+      UPLOAD_URL_TTL_SECONDS,
       { partNumber: String(partNumber), uploadId },
     );
     return { url };
+  }
+
+  /**
+   * The caller's own video, still in its upload phase. Upload endpoints must
+   * not touch someone else's video, nor re-open one already transcoding,
+   * live or banned (completing an upload re-queues transcoding).
+   */
+  private async findUploadingVideo(videoId: string, userId: string): Promise<Video> {
+    const video = await this.em.findOne(Video, { id: videoId }, { populate: ['user'] });
+    if (!video) throw new NotFoundException('Video not found');
+    assertOwner(video, userId, 'upload to');
+    if (video.status !== VideoStatus.PENDING) {
+      throw new ConflictException('This video is no longer accepting uploads');
+    }
+    return video;
   }
 
   async completeUpload(videoId: string): Promise<VideoResult> {
@@ -156,7 +200,7 @@ export class VideosService {
 
     await this.kafka.publishVideoUploaded({
       videoId: video.id,
-      objectKey: video.filename,
+      objectKey: video.objectKey,
       bucket: RAW_UPLOADS_BUCKET,
       filename: video.filename,
       mimeType: video.mimeType,
@@ -169,10 +213,10 @@ export class VideosService {
 
   async completeMultipartUpload(
     videoId: string,
+    userId: string,
     dto: CompleteMultipartDto,
   ): Promise<VideoResult> {
-    const video = await this.em.findOne(Video, { id: videoId });
-    if (!video) throw new NotFoundException('Video not found');
+    const video = await this.findUploadingVideo(videoId, userId);
 
     if (!dto.uploadId || !dto.parts) {
       return this.completeUpload(videoId);
@@ -185,7 +229,7 @@ export class VideosService {
 
       await this.minio.completeMultipartUpload(
         RAW_UPLOADS_BUCKET,
-        video.filename,
+        video.objectKey,
         dto.uploadId,
         parts,
       );
@@ -198,17 +242,20 @@ export class VideosService {
     }
   }
 
-  async abortMultipartUpload(videoId: string, uploadId: string): Promise<void> {
-    const video = await this.em.findOne(Video, { id: videoId });
-    if (!video) throw new NotFoundException('Video not found');
+  async abortMultipartUpload(
+    videoId: string,
+    userId: string,
+    uploadId: string,
+  ): Promise<void> {
+    const video = await this.findUploadingVideo(videoId, userId);
 
     try {
-      await this.minio.removeObject(RAW_UPLOADS_BUCKET, video.filename);
+      await this.minio.removeObject(RAW_UPLOADS_BUCKET, video.objectKey);
     } catch {}
     try {
       await this.minio.abortMultipartUpload(
         RAW_UPLOADS_BUCKET,
-        video.filename,
+        video.objectKey,
         uploadId,
       );
     } catch {}
@@ -224,20 +271,19 @@ export class VideosService {
       { populate: ['user'] },
     );
     if (!video) throw new NotFoundException('Video not found');
-    if (video.user.id !== userId) {
-      throw new ForbiddenException('You can only delete your own videos');
-    }
+    assertOwner(video, userId, 'delete');
 
     await this.em.nativeDelete(WatchHistory, { video: video.id });
 
     try {
-      await this.minio.removeObject(RAW_UPLOADS_BUCKET, video.filename);
+      await this.minio.removeObject(RAW_UPLOADS_BUCKET, video.objectKey);
     } catch {}
     await this.removeObjectsByPrefix(PROCESSED_BUCKET, `${video.id}/`);
     await this.removeObjectsByPrefix(THUMBNAILS_BUCKET, `${video.id}/`);
 
     this.em.remove(video);
     await this.em.flush();
+    await invalidateVideoStatus(this.redis, videoId);
   }
 
   private async listObjectKeys(
@@ -290,8 +336,19 @@ export class VideosService {
   }
 
   private mapVideo(video: Video, views = 0): VideoResult {
+    // Built field by field: spreading the entity would serialize the full
+    // uploader User (email, password hash) into public responses.
     return {
-      ...video,
+      id: video.id,
+      title: video.title,
+      description: video.description,
+      filename: video.filename,
+      mimeType: video.mimeType,
+      status: video.status,
+      duration: video.duration,
+      createdAt: video.createdAt,
+      updatedAt: video.updatedAt,
+      user: { id: video.user.id, username: video.user.username },
       size: String(video.size),
       hlsUrl:
         video.status === VideoStatus.ACTIVE
@@ -357,27 +414,24 @@ export class VideosService {
     videoId: string,
     progress: number,
   ): Promise<{ videoId: string; progress: number; watchedAt: Date }> {
-    const userRef = this.em.getReference(User, userId);
-    const videoRef = this.em.getReference(Video, videoId);
+    // A missing video would otherwise surface as a foreign-key 500.
+    const video = await this.em.findOne(Video, { id: videoId }, { fields: ['id'] });
+    if (!video) throw new NotFoundException('Video not found');
 
-    let entry = await this.em.findOne(WatchHistory, {
-      user: userId,
-      video: videoId,
-    });
-
-    if (entry) {
-      entry.progress = progress;
-      entry.watchedAt = new Date();
-    } else {
-      entry = this.em.create(WatchHistory, {
-        user: userRef,
-        video: videoRef,
+    // Atomic upsert: two first writes at once (e.g. two tabs) would otherwise
+    // both insert and trip the (user, video) unique constraint.
+    const watchedAt = new Date();
+    await this.em.upsert(
+      WatchHistory,
+      {
+        user: this.em.getReference(User, userId),
+        video: this.em.getReference(Video, videoId),
         progress,
-      });
-      this.em.persist(entry);
-    }
-
-    await this.em.flush();
+        watchedAt,
+      },
+      { onConflictFields: ['user', 'video'], onConflictMergeFields: ['progress', 'watchedAt'] },
+    );
+    const entry = { watchedAt };
 
     if (progress >= 100) {
       await this.em.nativeDelete(WatchLater, { user: userId, video: videoId });
@@ -449,6 +503,7 @@ export class VideosService {
     }
 
     await this.em.flush();
+    await invalidateVideoStatus(this.redis, id);
     return this.mapVideoWithViews(
       await this.em.findOneOrFail(Video, { id }, { populate: ['user'] }),
     );
@@ -461,9 +516,7 @@ export class VideosService {
   ): Promise<VideoResult> {
     const video = await this.em.findOne(Video, { id }, { populate: ['user'] });
     if (!video) throw new NotFoundException('Video not found');
-    if (video.user.id !== userId) {
-      throw new ForbiddenException('You can only edit your own videos');
-    }
+    assertOwner(video, userId, 'edit');
 
     if (dto.title !== undefined) {
       video.title = dto.title;
@@ -485,8 +538,9 @@ export class VideosService {
     const video = await this.em.findOne(Video, { id }, { populate: ['user'] });
     if (!video) throw new NotFoundException('Video not found');
 
+    // A report is only a signal for admins: changing the status here would
+    // let any user take any video offline with one click.
     const previousStatus = video.status;
-    video.status = VideoStatus.PENDING_REVIEW;
 
     const actorRef = this.em.getReference(User, userId);
     const log = this.em.create(AuditLog, {

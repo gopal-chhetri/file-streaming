@@ -42,8 +42,8 @@ export class UsersController {
     description: 'User created.',
     type: UserResponseDto,
   })
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  async create(@Body() createUserDto: CreateUserDto) {
+    return UsersService.toResponse(await this.usersService.create(createUserDto));
   }
 
   @Get()
@@ -68,7 +68,7 @@ export class UsersController {
   })
   @ApiResponse({ status: 404, description: 'User not found.' })
   findOne(@Param('id') id: string) {
-    return this.usersService.findById(id);
+    return this.usersService.getProfile(id);
   }
 
   @Patch(':id/role')

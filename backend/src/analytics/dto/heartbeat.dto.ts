@@ -1,18 +1,23 @@
-import { IsString, IsNumber, IsOptional, IsIn, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsIn, Min, IsUUID, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class HeartbeatDto {
   @ApiProperty({ description: 'Unique session identifier' })
   @IsString()
+  @MaxLength(64)
   sessionId!: string;
 
-  @ApiPropertyOptional()
+  /**
+   * Ignored: the user is taken from the bearer token. Still accepted so
+   * older clients that send it aren't rejected by input validation.
+   */
+  @ApiPropertyOptional({ deprecated: true, description: 'Ignored; derived from the bearer token' })
   @IsOptional()
   @IsString()
   userId?: string;
 
   @ApiProperty()
-  @IsString()
+  @IsUUID()
   videoId!: string;
 
   @ApiProperty({ description: 'Current playback position in seconds' })

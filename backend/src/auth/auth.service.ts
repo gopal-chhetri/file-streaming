@@ -13,7 +13,8 @@ import { User } from '../users/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { RegisterDto } from './dto/register.dto';
 
-const SALT_ROUNDS = 12;
+/** How long a just-rotated refresh token is still accepted (concurrent tabs). */
+const REFRESH_GRACE_MS = 10_000;
 
 @Injectable()
 export class AuthService {
@@ -36,13 +37,12 @@ export class AuthService {
       throw new ConflictException('Username already registered');
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
-
+    // UsersService.create hashes the password.
     const user = await this.usersService.create(
       {
         email: dto.email,
         username: dto.username,
-        password: passwordHash, // Stored as hash
+        password: dto.password,
         firstName: dto.firstName,
         lastName: dto.lastName,
       },
@@ -89,9 +89,21 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // Detection of refresh token reuse
+    // A deactivated account must not keep minting access tokens.
+    if (!storedToken.user.isActive) {
+      await this.revokeFamily(storedToken.familyId);
+      throw new UnauthorizedException('Account is deactivated');
+    }
+
     if (storedToken.revokedAt) {
-      // The token was already used - potential theft! Revoke the entire family
+      // Two tabs refreshing at the same moment both present the same token;
+      // the second arrives just after the first rotated it. Within a short
+      // grace window, and only while the session is still alive, that is
+      // not theft, so issue another pair in the same family.
+      if (await this.isConcurrentRefresh(storedToken)) {
+        return this.issueTokens(storedToken.user, storedToken.familyId);
+      }
+      // Genuine reuse of an old token: potential theft. Revoke the session.
       await this.revokeFamily(storedToken.familyId);
       throw new UnauthorizedException(
         'Refresh token reuse detected. All sessions revoked.',
@@ -103,8 +115,10 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token expired');
     }
 
-    // Revoke old token
-    storedToken.revokedAt = new Date();
+    // Rotate: the presented token is replaced by the new one.
+    const now = new Date();
+    storedToken.revokedAt = now;
+    storedToken.rotatedAt = now;
     this.em.persist(storedToken);
     await this.em.flush();
 
@@ -146,6 +160,28 @@ export class AuthService {
       accessToken,
       refreshToken: rawRefreshToken,
     };
+  }
+
+  /** Revokes the session (token family) the given refresh token belongs to. */
+  async logout(rawRefreshToken: string | undefined): Promise<void> {
+    if (!rawRefreshToken) return;
+    const storedToken = await this.em.findOne(RefreshToken, {
+      tokenHash: this.hashToken(rawRefreshToken),
+    });
+    if (storedToken) {
+      await this.revokeFamily(storedToken.familyId);
+    }
+  }
+
+  private async isConcurrentRefresh(token: RefreshToken): Promise<boolean> {
+    if (!token.rotatedAt) return false; // revoked by logout or reuse detection
+    if (Date.now() - token.rotatedAt.getTime() > REFRESH_GRACE_MS) return false;
+    // The family must still have a live token (logout revokes all of them).
+    const live = await this.em.count(RefreshToken, {
+      familyId: token.familyId,
+      revokedAt: null,
+    });
+    return live > 0;
   }
 
   private hashToken(token: string): string {

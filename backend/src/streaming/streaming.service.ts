@@ -1,6 +1,9 @@
 import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { Client as MinioClient } from 'minio';
+import { EntityManager } from '@mikro-orm/core';
+import Redis from 'ioredis';
 import { MINIO_CLIENT } from '../minio/minio.constants';
+import { isVideoPlayable } from '../common/video-status';
 import { Readable } from 'node:stream';
 
 const PROCESSED_BUCKET = 'processed';
@@ -17,6 +20,15 @@ const MIME_TYPES: Record<string, string> = {
   key: 'application/octet-stream',
 };
 
+/** A relative HLS file path: no traversal, only playlists and segments. */
+export function isSafeHlsPath(filePath: string): boolean {
+  const segments = filePath.split('/');
+  return (
+    segments.every((s) => s !== '' && s !== '.' && s !== '..') &&
+    /\.(m3u8|ts)$/i.test(filePath)
+  );
+}
+
 function mimeFromPath(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase() || '';
   return MIME_TYPES[ext] || 'application/octet-stream';
@@ -26,7 +38,11 @@ function mimeFromPath(path: string): string {
 export class StreamingService {
   private readonly logger = new Logger(StreamingService.name);
 
-  constructor(@Inject(MINIO_CLIENT) private readonly minio: MinioClient) {}
+  constructor(
+    @Inject(MINIO_CLIENT) private readonly minio: MinioClient,
+    private readonly em: EntityManager,
+    @Inject('REDIS_CLIENT') private readonly redis: Redis,
+  ) {}
 
   async getFile(
     videoId: string,
@@ -39,6 +55,11 @@ export class StreamingService {
     start?: number;
     end?: number;
   }> {
+    // Only playlists and segments of a video that is live: banned, reported
+    // or failed videos must not keep streaming from a direct URL.
+    if (!isSafeHlsPath(filePath) || !(await isVideoPlayable(this.em, this.redis, videoId))) {
+      throw new NotFoundException('File not found');
+    }
     const objectPath = `${videoId}/${filePath}`;
 
     try {

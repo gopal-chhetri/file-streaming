@@ -118,6 +118,9 @@
     },
     "transformIgnorePatterns": [
       "node_modules/(?!@mikro-orm)"
+    ],
+    "setupFiles": [
+      "<rootDir>/../test/setup-esm-mocks.ts"
     ]
   }
 }

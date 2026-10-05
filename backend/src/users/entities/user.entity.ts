@@ -21,7 +21,9 @@ export class User {
   @Property({ unique: true, type: 'string', length: 20 })
   username!: string;
 
-  @Property({ type: 'string', length: 255 })
+  // Never serialized: entities are returned from several endpoints, and the
+  // bcrypt hash must not reach any response.
+  @Property({ type: 'string', length: 255, hidden: true })
   passwordHash!: string;
 
   @Property({ type: 'string', length: 100 })

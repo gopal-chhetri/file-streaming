@@ -1,7 +1,7 @@
 import { createRoute } from '@tanstack/react-router'
 import { Route as rootRoute } from '../__root'
 import { useVideos } from '../../hooks/use-videos'
-import { useModerateVideo } from '../../hooks/use-admin'
+import { useModerateVideo, useReportedVideos } from '../../hooks/use-admin'
 import { useRef } from 'react'
 import {
   Table,
@@ -33,6 +33,8 @@ export const Route = createRoute({
 function AdminVideos() {
   const { data: videos, isLoading } = useVideos()
   const moderate = useModerateVideo()
+  const { data: reported } = useReportedVideos()
+  const reportCounts = new Map(reported?.map((r) => [r.videoId, r.reports]))
   const moderating = useRef<Set<string>>(new Set())
 
   return (
@@ -66,9 +68,16 @@ function AdminVideos() {
               <TableRow key={v.id}>
                 <TableCell className="font-medium">{v.title}</TableCell>
                 <TableCell>
-                  <Badge variant={statusVariant[v.status] || 'default'}>
-                    {v.status}
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant={statusVariant[v.status] || 'default'}>
+                      {v.status}
+                    </Badge>
+                    {reportCounts.has(v.id) && (
+                      <Badge variant="warning">
+                        Reported ({reportCounts.get(v.id)})
+                      </Badge>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-text-muted">
                   {v.views.toLocaleString()}

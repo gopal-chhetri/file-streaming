@@ -40,6 +40,12 @@ export class AdminController {
     return this.adminService.moderateVideo(id, dto, req);
   }
 
+  @Get('videos/reported')
+  @ApiOperation({ summary: 'Videos reported by users, most-reported first' })
+  getReportedVideos() {
+    return this.adminService.getReportedVideos();
+  }
+
   @Get('audit-log')
   @ApiOperation({ summary: 'Get audit log entries' })
   getAuditLog() {

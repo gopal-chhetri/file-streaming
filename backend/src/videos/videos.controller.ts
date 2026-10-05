@@ -10,6 +10,7 @@ import {
   Res,
   UseGuards,
   NotFoundException,
+  BadRequestException,
   Inject,
   Query,
 } from '@nestjs/common';
@@ -131,13 +132,19 @@ export class VideosController {
   @ApiQuery({ name: 'partNumber', type: Number })
   @ApiQuery({ name: 'uploadId', type: String })
   getPartUrl(
+    @Req() req: Request,
     @Param('id') id: string,
     @Query('partNumber') partNumber: string,
     @Query('uploadId') uploadId: string,
   ) {
+    const part = parseInt(partNumber, 10);
+    if (!Number.isInteger(part) || part < 1 || part > 10000) {
+      throw new BadRequestException('partNumber must be between 1 and 10000');
+    }
     return this.videosService.getUploadPartUrl(
       id,
-      parseInt(partNumber, 10),
+      (req.user as { id: string }).id,
+      part,
       uploadId,
     );
   }
@@ -147,16 +154,32 @@ export class VideosController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Complete multipart upload' })
   @ApiBody({ type: CompleteMultipartDto })
-  completeUpload(@Param('id') id: string, @Body() dto: CompleteMultipartDto) {
-    return this.videosService.completeMultipartUpload(id, dto);
+  completeUpload(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: CompleteMultipartDto,
+  ) {
+    return this.videosService.completeMultipartUpload(
+      id,
+      (req.user as { id: string }).id,
+      dto,
+    );
   }
 
   @Post(':id/abort-upload')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Abort multipart upload' })
-  abortUpload(@Param('id') id: string, @Body('uploadId') uploadId: string) {
-    return this.videosService.abortMultipartUpload(id, uploadId);
+  abortUpload(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body('uploadId') uploadId: string,
+  ) {
+    return this.videosService.abortMultipartUpload(
+      id,
+      (req.user as { id: string }).id,
+      uploadId,
+    );
   }
 
   @Delete(':id')

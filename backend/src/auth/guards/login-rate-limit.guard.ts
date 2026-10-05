@@ -21,9 +21,10 @@ export class LoginRateLimitGuard implements CanActivate {
     const body = request.body || {};
     const usernameOrEmail = body.usernameOrEmail || '';
 
-    // Fallbacks for behind proxy (like Cloudflare / Traefik)
-    const ip =
-      (request.headers['x-forwarded-for'] as string) || request.ip || 'unknown';
+    // req.ip resolves the client behind Traefik via "trust proxy" (main.ts).
+    // Reading X-Forwarded-For directly would let clients pick their own IP
+    // and dodge the per-IP limit.
+    const ip = request.ip || 'unknown';
 
     if (!usernameOrEmail) {
       return true; // Let validation pipe handle missing body properties

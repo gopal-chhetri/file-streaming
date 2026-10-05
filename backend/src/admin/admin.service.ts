@@ -10,6 +10,7 @@ import { DailyAnalytics } from '../analytics/schemas/daily-analytics.schema';
 import { ModerateVideoDto } from './dto/moderate-video.dto';
 import { KafkaService } from '../kafka/kafka.service';
 import type { Request } from 'express';
+import { invalidateVideoStatus } from '../common/video-status';
 
 @Injectable()
 export class AdminService {
@@ -82,7 +83,7 @@ export class AdminService {
       video.status = VideoStatus.PENDING;
       await this.kafka.publishVideoUploaded({
         videoId: video.id,
-        objectKey: video.filename,
+        objectKey: video.objectKey,
         bucket: 'raw-uploads',
         filename: video.filename,
         mimeType: video.mimeType,
@@ -109,11 +110,32 @@ export class AdminService {
 
     this.em.persist(log);
     await this.em.flush();
+    await invalidateVideoStatus(this.redis, video.id);
     return video;
   }
 
+  /** Videos users have reported, most-reported first, for the moderation queue. */
+  async getReportedVideos(): Promise<
+    { videoId: string; reports: number; lastReportedAt: Date }[]
+  > {
+    const rows: { entity_id: string; reports: string; last_reported_at: Date }[] =
+      await this.em.getConnection().execute(
+        `SELECT a.entity_id, COUNT(*) AS reports, MAX(a.created_at) AS last_reported_at
+           FROM audit_logs a
+           JOIN videos v ON v.id::text = a.entity_id
+          WHERE a.action = 'video.reported' AND v.status <> 'banned'
+          GROUP BY a.entity_id
+          ORDER BY COUNT(*) DESC, MAX(a.created_at) DESC`,
+      );
+    return rows.map((r) => ({
+      videoId: r.entity_id,
+      reports: Number(r.reports),
+      lastReportedAt: r.last_reported_at,
+    }));
+  }
+
   async getAuditLog() {
-    return this.em.find(
+    const entries = await this.em.find(
       AuditLog,
       {},
       {
@@ -122,5 +144,24 @@ export class AdminService {
         limit: 100,
       },
     );
+    // Explicit shape: the actor is a full User entity.
+    return entries.map((e) => ({
+      id: e.id,
+      action: e.action,
+      entityType: e.entityType,
+      entityId: e.entityId,
+      metadata: e.metadata,
+      ip: e.ip,
+      createdAt: e.createdAt,
+      actor: e.actor
+        ? {
+            id: e.actor.id,
+            username: e.actor.username,
+            firstName: e.actor.firstName,
+            lastName: e.actor.lastName,
+            email: e.actor.email,
+          }
+        : null,
+    }));
   }
 }

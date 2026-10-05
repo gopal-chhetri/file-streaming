@@ -6,11 +6,58 @@ Named after the **aurora borealis**: the UI is a glowing night sky, with a spect
 
 **Domain:** `https://streaming.soylab.dpdns.org`
 
-## Core flows
+## Core Flows
 
-- **Upload:** Instructor → presigned URL → MinIO `raw-uploads/` → Kafka → ffmpeg transcode → HLS → MinIO `processed/`
-- **Stream:** Viewer → Cloudflare → Traefik → NestJS → presigned manifest → hls.js playback
-- **Analytics:** Player heartbeats (10s) → Kafka → Redis (live ranges) → MongoDB (daily rollups) → Dashboard API
+### 1. Video Upload & Transcoding Flow
+```mermaid
+sequenceDiagram
+    actor Inst as Instructor
+    participant API as NestJS API
+    participant Storage as MinIO (S3)
+    participant Kafka as Kafka Broker
+    participant Worker as FFmpeg Worker
+
+    Inst->>API: GET /videos/presigned-url (request upload)
+    API-->>Inst: Return presigned upload URL & target S3 key
+    Inst->>Storage: PUT raw video data (direct upload)
+    Storage-->>Inst: 200 OK (upload complete)
+    Inst->>API: POST /videos (confirm upload & metadata)
+    API->>Kafka: Publish "video.uploaded" event (UUID, format details)
+    API-->>Inst: 201 Created (processing started)
+    
+    Kafka->>Worker: Consume "video.uploaded"
+    activate Worker
+    Worker->>Storage: Download raw video file
+    Worker->>Worker: Run ffmpeg (extract thumbnails, transcode to 480p/720p/1080p HLS)
+    Worker->>Storage: Upload transcoded HLS stream (.m3u8, .ts files)
+    Worker->>API: POST /videos/:id/status (mark as completed/ready)
+    deactivate Worker
+```
+
+### 2. Stream & Analytics Flow
+```mermaid
+sequenceDiagram
+    actor Viewer
+    participant Browser as Web Player (hls.js)
+    participant API as NestJS API
+    participant Kafka as Kafka Broker
+    participant Redis as Redis Cache
+    participant MongoDB as MongoDB (Analytics Rollups)
+
+    loop Every 10 seconds
+        Browser->>API: POST /analytics/heartbeat (video_id, user_id, current_range)
+    end
+    API->>Kafka: Publish "engagement.heartbeat" message
+    
+    Note over Kafka, Redis: Background processing of raw heartbeats
+    Kafka->>Redis: Record active viewers / range updates (immediate/realtime cache)
+    
+    loop Daily Rollup Cron
+        MongoDB->>Redis: Extract cached active user sessions / heartbeats
+        MongoDB->>MongoDB: Rollup stats by video, day, and country
+        MongoDB-->>API: Provide query interface for Admin Dashboard
+    end
+```
 
 ## Features
 

@@ -5,9 +5,13 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
+import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
 import { Role } from './entities/role.entity';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UserResponseDto } from './dto/user-response.dto';
+
+const SALT_ROUNDS = 12;
 
 @Injectable()
 export class UsersService {
@@ -41,7 +45,7 @@ export class UsersService {
     const user = this.em.create(User, {
       email: createUserDto.email,
       username: createUserDto.username,
-      passwordHash: createUserDto.password, // hashed in Phase 2
+      passwordHash: await bcrypt.hash(createUserDto.password, SALT_ROUNDS),
       firstName: createUserDto.firstName,
       lastName: createUserDto.lastName,
       role,
@@ -63,16 +67,9 @@ export class UsersService {
     return this.em.findOne(User, { id }, { populate: ['role'] });
   }
 
-  async findAll() {
-    const users = await this.em.find(
-      User,
-      {},
-      {
-        orderBy: { createdAt: 'DESC' },
-        populate: ['role'],
-      },
-    );
-    return users.map((u) => ({
+  /** The API representation of a user: never includes the password hash. */
+  static toResponse(u: User): UserResponseDto {
+    return {
       id: u.id,
       email: u.email,
       username: u.username,
@@ -82,7 +79,25 @@ export class UsersService {
       isActive: u.isActive,
       createdAt: u.createdAt,
       updatedAt: u.updatedAt,
-    }));
+    };
+  }
+
+  async getProfile(id: string): Promise<UserResponseDto> {
+    const user = await this.findById(id);
+    if (!user) throw new NotFoundException('User not found');
+    return UsersService.toResponse(user);
+  }
+
+  async findAll() {
+    const users = await this.em.find(
+      User,
+      {},
+      {
+        orderBy: { createdAt: 'DESC' },
+        populate: ['role'],
+      },
+    );
+    return users.map((u) => UsersService.toResponse(u));
   }
 
   async updateRole(userId: string, roleName: string, currentUserRole: string) {

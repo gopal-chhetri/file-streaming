@@ -26,44 +26,74 @@ const kafka = new Kafka({
 
 const consumer: Consumer = kafka.consumer({
   groupId: process.env.KAFKA_GROUP_ID || 'transcoding-worker',
+  // Transcodes take minutes; we heartbeat while working (see processVideo),
+  // and the session timeout leaves room for slow heartbeats.
+  sessionTimeout: 90_000,
+  heartbeatInterval: 3_000,
 });
 
-async function updateVideoStatus(
+// Read at call time, not import time, so configuration (and tests) can set them.
+const apiBaseUrl = () => process.env.API_BASE_URL || 'http://localhost:3000';
+const workerApiToken = () => process.env.WORKER_API_TOKEN;
+
+const STATUS_RETRIES = 5;
+/** Must match the API's MAX_UPLOAD_BYTES (default 5 GB). */
+const MAX_UPLOAD_BYTES = Number(process.env.MAX_UPLOAD_BYTES) || 5 * 1024 ** 3;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Report status to the API, retrying with backoff. Returns false if the API
+ * stayed unreachable, so the caller can decide whether to redo the job.
+ */
+export async function updateVideoStatus(
   videoId: string,
   status: string,
   duration?: number,
   thumbnailUrl?: string,
   failureReason?: string,
-) {
-  const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
-  const token = process.env.WORKER_API_TOKEN || 'internal-worker-token';
-
-  try {
-    const res = await fetch(`${baseUrl}/api/videos/${videoId}/status`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Api-Key': token,
-      },
-      body: JSON.stringify({
-        status,
-        duration,
-        thumbnailUrl,
-        failureReason,
-      }),
-    });
-    if (!res.ok) {
-      console.error(`Failed to update status for ${videoId}: ${res.status}`);
+  retries = STATUS_RETRIES,
+  baseDelayMs = 1000,
+): Promise<boolean> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(`${apiBaseUrl()}/api/videos/${videoId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-Key': workerApiToken() ?? '',
+        },
+        body: JSON.stringify({ status, duration, thumbnailUrl, failureReason }),
+      });
+      if (res.ok) return true;
+      // 4xx (bad token, unknown video) won't fix itself; don't retry.
+      if (res.status >= 400 && res.status < 500) {
+        console.error(`Status update for ${videoId} rejected: ${res.status}`);
+        return false;
+      }
+      console.error(`Status update for ${videoId} failed: ${res.status} (attempt ${attempt}/${retries})`);
+    } catch (err) {
+      console.error(`Status update for ${videoId} errored (attempt ${attempt}/${retries}):`, err);
     }
-  } catch (err) {
-    console.error(`Error updating status for ${videoId}:`, err);
+    if (attempt < retries) await sleep(baseDelayMs * 2 ** (attempt - 1));
+  }
+  return false;
+}
+
+/** Current status from the public video endpoint, or null if unknown. */
+async function currentStatus(videoId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${apiBaseUrl()}/api/videos/${videoId}`);
+    if (!res.ok) return null;
+    return ((await res.json()) as { status?: string }).status ?? null;
+  } catch {
+    return null;
   }
 }
 
 function classifyFailure(err: unknown): string | undefined {
   const msg = err instanceof Error ? err.message : String(err);
   if (
-    /Invalid data found|does not contain any stream|Could not find codec|Error while opening decoder|not a valid|unsupported|moov atom|no stream/gi.test(
+    /Invalid data found|does not contain any (video )?stream|Could not find codec|Error while opening decoder|not a valid|unsupported|moov atom|no stream/i.test(
       msg,
     )
   ) {
@@ -129,9 +159,22 @@ async function extractThumbnails(
   return `${videoId}/medium.jpg`;
 }
 
-async function processVideo(event: any) {
+async function processVideo(event: any, heartbeat: () => Promise<void>) {
   const { videoId, objectKey, bucket, filename } = event;
+
+  // Redelivered or duplicate events (e.g. after a rebalance) must not redo a
+  // finished transcode or resurrect a banned video.
+  const status = await currentStatus(videoId);
+  if (status === 'active' || status === 'banned') {
+    console.log(`Skipping video ${videoId}: already ${status}`);
+    return;
+  }
   console.log(`Processing video ${videoId}: ${filename}`);
+
+  // Keep the Kafka session alive during the long-running transcode.
+  const beat = setInterval(() => {
+    heartbeat().catch((err) => console.warn(`Kafka heartbeat failed for ${videoId}:`, err));
+  }, 10_000);
 
   const workDir = join(tmpdir(), `transcode-${videoId}`);
   if (existsSync(workDir)) {
@@ -142,6 +185,15 @@ async function processVideo(event: any) {
 
   try {
     await updateVideoStatus(videoId, 'processing');
+
+    // Presigned uploads can't enforce a size limit, so check the real file.
+    const stat = await minio.statObject(bucket || RAW_BUCKET, objectKey);
+    if (stat.size > MAX_UPLOAD_BYTES) {
+      await minio.removeObject(bucket || RAW_BUCKET, objectKey).catch(() => undefined);
+      await updateVideoStatus(videoId, 'failed', undefined, undefined, 'FILE_TOO_LARGE');
+      console.warn(`Rejected ${videoId}: ${stat.size} bytes exceeds ${MAX_UPLOAD_BYTES}`);
+      return;
+    }
 
     const inputPath = await downloadFile(minio, bucket || RAW_BUCKET, objectKey, workDir);
     console.log(`Downloaded to ${inputPath}`);
@@ -156,37 +208,61 @@ async function processVideo(event: any) {
     await uploadDirectory(minio, PROCESSED_BUCKET, result.outputDir, videoId);
     console.log(`Uploaded HLS for ${videoId}`);
 
-    await updateVideoStatus(videoId, 'active', result.duration, thumbnailUrl);
+    if (!(await updateVideoStatus(videoId, 'active', result.duration, thumbnailUrl))) {
+      // The work is done but the API never heard. Throwing leaves the offset
+      // uncommitted, so Kafka redelivers and the job is retried instead of the
+      // video staying "processing" forever.
+      throw new StatusUpdateError(`Could not mark ${videoId} active`);
+    }
     console.log(`Video ${videoId} transcoded successfully and marked active`);
   } catch (err) {
+    if (err instanceof StatusUpdateError) throw err;
     console.error(`Transcoding failed for ${videoId}:`, err);
     await updateVideoStatus(videoId, 'failed', undefined, undefined, classifyFailure(err));
   } finally {
+    clearInterval(beat);
     if (existsSync(workDir)) {
       rmSync(workDir, { recursive: true });
     }
   }
 }
 
+class StatusUpdateError extends Error {}
+
 async function main() {
+  if (!workerApiToken()) {
+    // The API rejects status callbacks without the shared token, so running
+    // without it would transcode videos that never go live.
+    console.error('WORKER_API_TOKEN is not set; refusing to start.');
+    process.exit(1);
+  }
   await consumer.connect();
   await consumer.subscribe({ topic: TOPIC, fromBeginning: false });
   console.log(`Consumer subscribed to ${TOPIC}`);
 
   await consumer.run({
-    eachMessage: async ({ message }) => {
+    eachMessage: async ({ message, heartbeat }) => {
       if (!message.value) return;
+      let event: unknown;
       try {
-        const event = JSON.parse(message.value.toString());
-        await processVideo(event);
+        event = JSON.parse(message.value.toString());
       } catch (err) {
+        console.error('Skipping malformed message:', err);
+        return;
+      }
+      try {
+        await processVideo(event, heartbeat);
+      } catch (err) {
+        if (err instanceof StatusUpdateError) throw err; // redeliver
         console.error('Failed to process message:', err);
       }
     },
   });
 }
 
-main().catch((err) => {
-  console.error('Fatal error:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('Fatal error:', err);
+    process.exit(1);
+  });
+}

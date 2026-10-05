@@ -34,6 +34,14 @@ export class Video {
   @Property({ type: 'string', length: 255 })
   filename!: string;
 
+  /**
+   * Key of the raw upload in the raw-uploads bucket. Derived from the video ID
+   * (`<id>/source.<ext>`), never from the client's filename, which is only
+   * display metadata.
+   */
+  @Property({ type: 'string', length: 255, fieldName: 'object_key' })
+  objectKey!: string;
+
   @Property({ type: 'string', length: 50 })
   mimeType!: string;
 

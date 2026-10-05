@@ -28,7 +28,14 @@ export class StreamingController {
 
       res.setHeader('Content-Type', mimeType);
       res.setHeader('Accept-Ranges', 'bytes');
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      // Segments never change once written; playlists are the gate, so keep
+      // them short-lived so a ban or deletion takes effect within a minute.
+      res.setHeader(
+        'Cache-Control',
+        filePath.endsWith('.ts')
+          ? 'public, max-age=31536000, immutable'
+          : 'public, max-age=60',
+      );
 
       if (range && start !== undefined && end !== undefined) {
         res.status(206);

@@ -29,6 +29,15 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LoginRateLimitGuard } from './guards/login-rate-limit.guard';
 import { User } from '../users/entities/user.entity';
 
+/**
+ * Domain for the refresh-token cookie. COOKIE_DOMAIN must be set in
+ * production (validated at startup); locally it defaults to .soylab.local.
+ */
+export function refreshCookieDomain(): string | undefined {
+  if (process.env.COOKIE_DOMAIN) return process.env.COOKIE_DOMAIN;
+  return process.env.NODE_ENV === 'production' ? undefined : '.soylab.local';
+}
+
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -38,16 +47,22 @@ export class AuthController {
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
 
+  private cookieOptions() {
+    return {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      domain: refreshCookieDomain(),
+    };
+  }
+
   private setRefreshTokenCookie(res: Response, token: string) {
     const refreshExpiryDays = parseInt(
       process.env.JWT_REFRESH_EXPIRY ?? '7',
       10,
     );
     res.cookie('refreshToken', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      domain: '.soylab.local',
+      ...this.cookieOptions(),
       maxAge: refreshExpiryDays * 24 * 60 * 60 * 1000,
     });
   }
@@ -96,9 +111,9 @@ export class AuthController {
     const user = req.user as User;
     const tokens = await this.authService.login(user);
 
-    // Clear rate limits upon successful login
-    const ip =
-      (req.headers['x-forwarded-for'] as string) || req.ip || 'unknown';
+    // Clear rate limits upon successful login. req.ip honours "trust proxy"
+    // (see main.ts); the raw X-Forwarded-For header is client-controlled.
+    const ip = req.ip || 'unknown';
     const usernameOrEmail = req.body.usernameOrEmail || '';
     await this.redis.del(`rate_limit:login:ip:${ip}`);
     await this.redis.del(
@@ -143,16 +158,17 @@ export class AuthController {
   @Post('logout')
   @ApiOperation({
     summary: 'Log out user',
-    description: 'Clears the refresh token cookie.',
+    description: 'Revokes the session refresh token and clears the cookie.',
   })
   @ApiResponse({ status: 200, description: 'Logged out successfully.' })
-  async logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      domain: '.soylab.local',
-    });
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // Revoke server-side: clearing the cookie alone would leave the token
+    // usable for its full lifetime by anyone who copied it.
+    await this.authService.logout(req.cookies?.refreshToken);
+    res.clearCookie('refreshToken', this.cookieOptions());
     return { message: 'Logged out successfully' };
   }
 
@@ -167,7 +183,7 @@ export class AuthController {
   })
   async getMe(@Req() req: Request) {
     const userId = (req.user as { id: string }).id;
-    return this.usersService.findById(userId);
+    return this.usersService.getProfile(userId);
   }
 }
 

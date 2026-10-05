@@ -50,6 +50,12 @@ function WatchHistoryPage() {
                     className="text-white/0 transition-all duration-150 group-hover:text-white/90"
                   />
                 </div>
+                {item.progress > 0 && (
+                  <div
+                    className="absolute bottom-0 left-0 h-0.5 bg-accent"
+                    style={{ width: `${Math.round(item.progress)}%` }}
+                  />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <span className="block truncate font-medium text-text-primary transition-colors group-hover:text-accent">
@@ -60,17 +66,6 @@ function WatchHistoryPage() {
                     {item.channel}
                   </span>
                 )}
-              </div>
-              <div className="flex flex-shrink-0 items-center gap-3">
-                <div className="relative h-2 w-24 overflow-hidden rounded-full bg-subtle">
-                  <div
-                    className="h-full rounded-full bg-accent transition-all duration-300"
-                    style={{ width: `${Math.round(item.progress)}%` }}
-                  />
-                </div>
-                <span className="w-8 text-right text-xs font-mono text-text-muted">
-                  {Math.round(item.progress)}%
-                </span>
               </div>
             </Link>
           ))}

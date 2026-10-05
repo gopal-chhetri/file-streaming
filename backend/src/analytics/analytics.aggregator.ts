@@ -13,7 +13,7 @@ import { Model, type UpdateQuery } from 'mongoose';
 import { VIDEO_HEARTBEAT_TOPIC, HeartbeatEvent } from '../kafka/kafka.service';
 import {
   DailyAnalytics,
-  RetentionPoint,
+  retentionBucket,
 } from './schemas/daily-analytics.schema';
 
 const SESSION_TTL = 86400;
@@ -139,16 +139,10 @@ export class AnalyticsAggregator
 
   private async flushSession(event: HeartbeatEvent) {
     const date = event.timestamp.slice(0, 10);
-    const retentionPoint: RetentionPoint = {
-      position: Math.min(event.position, event.duration),
-      viewers: 1,
-      percentage:
-        event.duration > 0
-          ? Math.round(
-              (Math.min(event.position, event.duration) / event.duration) * 100,
-            )
-          : 0,
-    };
+    const percentage =
+      event.duration > 0
+        ? (Math.min(event.position, event.duration) / event.duration) * 100
+        : 0;
 
     const isCompletion =
       event.duration > 0 && event.position >= event.duration * 0.9;
@@ -158,8 +152,9 @@ export class AnalyticsAggregator
       $inc: {
         totalWatchTimeSeconds: Math.round(watchTime),
         ...(isCompletion ? { completions: 1 } : {}),
+        // Fixed-size histogram; a $push per session would grow without bound.
+        [`retentionBuckets.b${retentionBucket(percentage)}`]: 1,
       },
-      $push: { retentionCurve: retentionPoint },
     };
 
     await this.dailyAnalyticsModel.updateOne(

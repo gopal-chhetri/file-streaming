@@ -10,7 +10,7 @@ import { User } from '../../users/entities/user.entity';
 
 @Entity({ tableName: 'refresh_tokens' })
 export class RefreshToken {
-  [OptionalProps]?: 'id' | 'createdAt' | 'updatedAt' | 'revokedAt';
+  [OptionalProps]?: 'id' | 'createdAt' | 'updatedAt' | 'revokedAt' | 'rotatedAt';
 
   @PrimaryKey({ type: 'uuid' })
   id: string = v4();
@@ -34,6 +34,10 @@ export class RefreshToken {
 
   @Property({ type: 'datetime', nullable: true, fieldName: 'revoked_at' })
   revokedAt?: Date;
+
+  /** Set when replaced by normal rotation (as opposed to logout/reuse revocation). */
+  @Property({ type: 'datetime', nullable: true, fieldName: 'rotated_at' })
+  rotatedAt?: Date;
 
   @Property({ type: 'datetime', fieldName: 'created_at' })
   createdAt: Date = new Date();
